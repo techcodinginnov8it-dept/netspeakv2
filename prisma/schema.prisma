@@ -1,0 +1,856 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// -------------------------------------------------------------
+// Core Identity, Role & Access Management Foundation
+// -------------------------------------------------------------
+
+model User {
+  id           String      @id @default(uuid())
+  email        String      @unique
+  username     String      @unique
+  passwordHash String
+  fullName     String
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  userRoles    UserRole[]
+  sessions     Session[]
+  teacherProfile TeacherProfile?
+  staffProfile   StaffProfile?
+  notifications  Notification[]
+  auditLogs      AuditLog[]
+
+  @@index([email])
+  @@index([username])
+}
+
+enum ProjectType {
+  FTEX
+  FT
+  TTP
+}
+
+enum Department {
+  DOMESTIC
+  OVERSEAS
+}
+
+enum RegistrationStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+model TeacherProfile {
+  id                    String             @id @default(uuid())
+  userId                String?            @unique
+  user                  User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  // Personal Information
+  displayName           String
+  realFullName          String
+  birthday              DateTime
+  cellphone             String             @unique
+  emergencyContactName  String
+  emergencyContactPhone String
+  address               String
+
+  // Academic Information
+  schoolAttended        String
+  course                String
+  major                 String
+
+  // Operational Information
+  launchDate            DateTime?
+  projectType           ProjectType        @default(FT)
+  department            Department         @default(DOMESTIC)
+  assignedRestDay       String             @default("Sunday") // e.g. "Sunday", "Monday"
+  portalUsername        String?            // 51Talk Portal Username
+  portalPassword        String?            // 51Talk Portal Password
+
+  branch                String?            @default("Atimonan")
+  shiftScheduleId       String?
+  shiftSchedule         ShiftSchedule?     @relation(fields: [shiftScheduleId], references: [id], onDelete: SetNull)
+
+  // Approval Workflow
+  registrationStatus    RegistrationStatus @default(PENDING)
+  reviewedById          String?
+  reviewedAt            DateTime?
+  approvedById          String?
+  approvedAt            DateTime?
+  rejectionReason       String?
+
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  attendances           TeacherAttendance[]
+  dailyOutputs          DailyOutput[]
+  srdRequests           SwitchRestDayRequest[]
+  earlyTimeOffRequests  EarlyTimeOffRequest[]
+  resignations          TeacherResignation[]
+  concernTickets        TeacherConcernTicket[]
+  seatingAssignments    SeatingAssignment[]
+  newHireRecord         NewHireRecord?
+
+  @@index([realFullName, birthday])
+  @@index([registrationStatus])
+  @@index([department])
+  @@index([projectType])
+  @@index([shiftScheduleId])
+  @@index([branch])
+}
+
+model ShiftSchedule {
+  id          String           @id @default(uuid())
+  name        String           @unique // e.g. "Morning Shift (08:00 - 17:00)"
+  startTime   String                   // "08:00"
+  endTime     String                   // "17:00"
+  description String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  teachers    TeacherProfile[]
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  EARLY_OUT
+  ABSENT_VALID
+  ABSENT_INVALID
+  NO_LOGOUT
+  SRD
+  APPROVED_REST_DAY
+}
+
+model TeacherAttendance {
+  id                 String           @id @default(uuid())
+  teacherId          String
+  teacher            TeacherProfile   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  userId             String?
+  date               DateTime         // Normalized calendar date of shift
+
+  scheduledStartTime DateTime?
+  scheduledEndTime   DateTime?
+
+  timeIn             DateTime?
+  timeInPhoto        String?          // Freshness Check selfie (base64 or URL)
+  timeOut            DateTime?
+  timeOutPhoto       String?
+
+  status             AttendanceStatus @default(PRESENT)
+  isLate             Boolean          @default(false)
+  lateMinutes        Int              @default(0)
+  isEarlyOut         Boolean          @default(false)
+  earlyOutMinutes    Int              @default(0)
+
+  absenceReason      String?
+  adminRemarks       String?
+
+  isVerifiedByAdmin  Boolean          @default(false)
+  verifiedById       String?
+  verifiedAt         DateTime?
+
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@unique([teacherId, date])
+  @@index([teacherId])
+  @@index([date])
+  @@index([status])
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  AUTO_APPROVED
+}
+
+model DailyOutput {
+  id                      String         @id @default(uuid())
+  teacherId               String
+  teacher                 TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  date                    DateTime       // Shift calendar date
+
+  openSlots               Int            @default(0)
+  bookedSlots             Int            @default(0)
+  classTardiness          Int            @default(0)
+  absentClasses           Int            @default(0)
+  earlyLeaveClasses       Int            @default(0)
+  remarks                 String?
+
+  announcementAcknowledged Boolean       @default(true)
+
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
+
+  @@unique([teacherId, date])
+  @@index([teacherId])
+  @@index([date])
+}
+
+model SwitchRestDayRequest {
+  id                String         @id @default(uuid())
+  teacherId         String
+  teacher           TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  originalRestDay   String         // e.g. "Sunday"
+  dateNotWorking    DateTime       // Date teacher will not work
+  switchedWorkDate  DateTime       // Date teacher will work in lieu
+  reason            String
+
+  status            RequestStatus  @default(PENDING)
+  approverId        String?
+  approverRemarks   String?
+  approvedAt        DateTime?
+
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([teacherId])
+  @@index([status])
+  @@index([dateNotWorking])
+  @@index([switchedWorkDate])
+}
+
+model EarlyTimeOffRequest {
+  id                    String         @id @default(uuid())
+  teacherId             String
+  teacher               TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  shiftDate             DateTime       // Date of shift
+  timeOffStart          DateTime       // Target departure timestamp
+  reason                String
+  checklistAcknowledged Boolean        @default(true)
+
+  status                RequestStatus  @default(PENDING)
+  approverId            String?
+  approverRemarks       String?
+  approvedAt            DateTime?
+  expiresAt             DateTime       // 30-min window for auto-approval rule
+
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  @@index([teacherId])
+  @@index([status])
+  @@index([shiftDate])
+}
+
+model Announcement {
+  id          String   @id @default(uuid())
+  title       String
+  content     String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum ResignationReason {
+  PERSONAL_FAMILY
+  HEALTH_MEDICAL
+  SCHEDULE_CONFLICT
+  FOUND_ANOTHER_JOB
+  HIGHER_PAY_COMPENSATION
+  STUDIES_EDUCATION
+  RELOCATION
+  WORKLOAD_BURNOUT
+  PROJECT_WORK_CONCERNS
+  MANAGEMENT_WORKPLACE_CONCERNS
+  INTERNET_EQUIPMENT_ISSUES
+  CAREER_CHANGE
+  OTHER_NOT_SPECIFIED
+}
+
+enum ResignationWorkflowStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  EXIT_INTERVIEW_SCHEDULED
+  EXIT_INTERVIEW_COMPLETED
+  IT_CLEARANCE_PENDING
+  DEACTIVATED
+  WITHDRAWN
+}
+
+model TeacherResignation {
+  id                 String                    @id @default(uuid())
+  teacherId          String
+  teacher            TeacherProfile            @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  fullName           String
+  branch             String                    @default("Main Branch")
+  project            String                    @default("FT")
+  dateFiled          DateTime                  @default(now())
+  effectivityDate    DateTime
+  reason             ResignationReason         @default(PERSONAL_FAMILY)
+  resignationLetter  String                    // Standard resignation letter body
+  signature          String                    // Typed / drawn digital signature
+  remarks            String?
+
+  status             ResignationWorkflowStatus @default(SUBMITTED)
+  reviewNotes        String?
+  reviewedById       String?
+  reviewedAt         DateTime?
+
+  // Exit interview relationship
+  exitInterviewSlot  ExitInterviewSlot?
+
+  // IT & TPCAP deactivation pipeline
+  tpcapNotified      Boolean                   @default(false)
+  tpcapNotifiedAt    DateTime?
+  itCleared          Boolean                   @default(false)
+  itClearedAt        DateTime?
+  itRemarks          String?
+
+  // Final account deactivation
+  deactivatedAt      DateTime?
+  deactivatedById    String?
+
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+
+  @@index([teacherId])
+  @@index([status])
+  @@index([effectivityDate])
+}
+
+model ExitInterviewSlot {
+  id                 String              @id @default(uuid())
+  slotDateTime       DateTime
+  interviewerName    String              @default("Operations Manager Assistant")
+  isBooked           Boolean             @default(false)
+  
+  resignationId      String?             @unique
+  resignation        TeacherResignation? @relation(fields: [resignationId], references: [id], onDelete: SetNull)
+
+  interviewNotes     String?
+  isCompleted        Boolean             @default(false)
+  completedAt        DateTime?
+
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  @@index([slotDateTime])
+  @@index([isBooked])
+}
+
+// ----------------------------------------------------
+// MILESTONE 7: Teacher Concerns & Incident Ticketing
+// ----------------------------------------------------
+
+enum ConcernCategory {
+  TECHNICAL_CONCERN
+  ATTENDANCE_CONCERN
+  SCHEDULE_CONCERN
+  STUDENT_CONCERN
+  ADMIN_CONCERN
+  PROJECT_CONCERN
+  PAYMENT_CONCERN
+  EMERGENCY
+  OTHER
+}
+
+enum TicketUrgency {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum TicketStatus {
+  SUBMITTED
+  ASSIGNED
+  UNDER_REVIEW
+  ACTION_TAKEN
+  RESOLVED
+  CLOSED
+}
+
+model TeacherConcernTicket {
+  id              String          @id @default(uuid())
+  teacherId       String
+  teacher         TeacherProfile  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  title           String
+  category        ConcernCategory @default(TECHNICAL_CONCERN)
+  urgency         TicketUrgency   @default(NORMAL)
+  description     String
+  attachmentUrl   String?
+
+  status          TicketStatus    @default(SUBMITTED)
+  assignedToId    String?
+  assignedToName  String?
+
+  actionTaken     String?
+  resolutionNotes String?
+  resolvedAt      DateTime?
+  resolvedById    String?
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([teacherId])
+  @@index([status])
+  @@index([category])
+  @@index([urgency])
+}
+
+enum IncidentCategory {
+  BEHAVIORAL_MISCONDUCT
+  EQUIPMENT_DAMAGE
+  UNAUTHORIZED_ABSENCE
+  INTERNET_POWER_OUTAGE
+  STUDENT_DISPUTE
+  SECURITY_BREACH
+  POLICY_VIOLATION
+  OTHER
+}
+
+enum IncidentStatus {
+  REPORTED
+  INVESTIGATING
+  ACTION_TAKEN
+  RESOLVED
+}
+
+model IncidentReportTicket {
+  id              String           @id @default(uuid())
+  incidentDate    DateTime
+  incidentTime    String           // e.g. "14:30"
+  reporterId      String?
+  reporterName    String
+  branch          String           @default("Main Branch")
+  personInvolved  String           // Teacher / Staff / Student involved
+  category        IncidentCategory @default(OTHER)
+  description     String
+  evidenceUrl     String?          // Attachment / screenshot
+  actionTaken     String?
+  remarks         String?
+  status          IncidentStatus   @default(REPORTED)
+
+  resolvedAt      DateTime?
+  resolvedById    String?
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([incidentDate])
+  @@index([branch])
+  @@index([status])
+  @@index([category])
+}
+
+// ----------------------------------------------------
+// MILESTONE 8: Seating Arrangement (§23)
+// ----------------------------------------------------
+
+enum SeatStatus {
+  AVAILABLE        // No teacher assigned, ready
+  OCCUPIED         // Active teacher assigned
+  PENDING_REFORMAT // Teacher resigned/AWOL — awaiting IT reformat
+  UNDER_REFORMAT   // IT is actively reformatting
+  RESERVED         // Held for incoming new hire
+}
+
+model Workstation {
+  id              String          @id @default(uuid())
+  branch          String          // e.g. "Main Branch", "Branch 2"
+  workstationNo   String          // e.g. "PC-01"
+  seatNo          String          // e.g. "Seat 12"
+  specs           String?         // Optional: hardware notes
+  status          SeatStatus      @default(AVAILABLE)
+  notes           String?
+
+  assignment      SeatingAssignment?
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@unique([branch, workstationNo])
+  @@index([branch])
+  @@index([status])
+}
+
+model SeatingAssignment {
+  id               String          @id @default(uuid())
+  workstationId    String          @unique
+  workstation      Workstation     @relation(fields: [workstationId], references: [id], onDelete: Cascade)
+
+  teacherId        String
+  teacher          TeacherProfile  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  schedule         String?         // e.g. "Morning Shift 08:00–17:00"
+
+  assignedById     String?
+  assignedAt       DateTime        @default(now())
+
+  unassignedAt     DateTime?
+  unassignedById   String?
+  unassignedReason String?         // "RESIGNED", "AWOL", "TRANSFER", "MANUAL"
+
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([teacherId])
+  @@index([workstationId])
+}
+
+// ----------------------------------------------------
+// MILESTONE 9: New Hire Onboarding (§33–34)
+// ----------------------------------------------------
+
+enum RequirementStatus {
+  PENDING
+  COMPLETED
+  MISSING
+  VERIFIED
+}
+
+enum OnboardingStatus {
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+  SLOTS_ELIGIBLE
+}
+
+model NewHireRecord {
+  id               String           @id @default(uuid())
+  teacherId        String           @unique
+  teacher          TeacherProfile   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  startDate        DateTime         // Hire / onboarding start date
+  branch           String
+  project          String
+
+  status           OnboardingStatus @default(IN_PROGRESS)
+  completionPct    Int              @default(0) // 0–100
+
+  slotsEligible    Boolean          @default(false)
+  slotsEligibleAt  DateTime?
+  verifiedById     String?
+  verifiedAt       DateTime?
+  notes            String?
+
+  requirements     NewHireRequirement[]
+
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([status])
+  @@index([startDate])
+  @@index([branch])
+}
+
+model NewHireRequirement {
+  id              String             @id @default(uuid())
+  recordId        String
+  record          NewHireRecord      @relation(fields: [recordId], references: [id], onDelete: Cascade)
+
+  requirementKey  String             // e.g. "BANK_ACCOUNT"
+  label           String             // Display name
+  status          RequirementStatus  @default(PENDING)
+
+  completedAt     DateTime?
+  verifiedById    String?
+  verifiedAt      DateTime?
+  notes           String?
+
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@unique([recordId, requirementKey])
+  @@index([recordId])
+  @@index([status])
+}
+
+// ----------------------------------------------------
+// MILESTONE 11: Admin & IT Operations, Checklists & Simulations (§9-12, §28-32)
+// ----------------------------------------------------
+
+enum StaffRoleType {
+  ADMIN
+  IT
+}
+
+enum StaffAttendanceStatus {
+  PRESENT
+  LATE
+  EARLY_OUT
+  ABSENT
+  SRD
+  NO_LOGOUT
+}
+
+enum SimulationType {
+  INTERNET_OUTAGE
+  POWER_OUTAGE
+  GENSET_OPERATION
+  BACKUP_INTERNET
+  EMERGENCY_PROCEDURES
+}
+
+enum SimulationStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model StaffProfile {
+  id          String        @id @default(uuid())
+  userId      String        @unique
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleType    StaffRoleType // ADMIN or IT
+  branch      String        @default("Main Branch")
+  department  String        @default("Operations")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  attendances StaffAttendance[]
+
+  @@index([roleType])
+  @@index([branch])
+}
+
+model StaffAttendance {
+  id                   String                 @id @default(uuid())
+  staffProfileId       String
+  staffProfile         StaffProfile           @relation(fields: [staffProfileId], references: [id], onDelete: Cascade)
+  date                 DateTime               // Calendar date
+  timeIn               DateTime?
+  timeOut              DateTime?
+  status               StaffAttendanceStatus  @default(PRESENT)
+  isLate               Boolean                @default(false)
+  lateMinutes          Int                    @default(0)
+  isChecklistComplete  Boolean                @default(false)
+  checklistCompletedAt DateTime?
+  absenceReason        String?
+  notes                String?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+
+  checklistResponses   StaffChecklistResponse[]
+
+  @@unique([staffProfileId, date])
+  @@index([date])
+  @@index([status])
+  @@index([isChecklistComplete])
+}
+
+model StaffChecklistResponse {
+  id           String          @id @default(uuid())
+  attendanceId String
+  attendance   StaffAttendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  taskCategory String          // "DAILY", "WEEKLY", "MONTHLY"
+  taskKey      String          // e.g., "CENTER_OPENING_ROUTINE"
+  taskLabel    String
+  isCompleted  Boolean         @default(false)
+  completedAt  DateTime?
+  notes        String?
+  createdAt    DateTime        @default(now())
+
+  @@unique([attendanceId, taskKey])
+  @@index([attendanceId])
+}
+
+model SimulationDrill {
+  id                 String           @id @default(uuid())
+  title              String           // e.g. "Genset & Secondary Fiber Switchover Drill"
+  drillType          SimulationType   @default(GENSET_OPERATION)
+  scheduledDate      DateTime         // Usually 1st or 3rd Saturday
+  status             SimulationStatus @default(SCHEDULED)
+  responsibleOfficer String           // Name or Title of person in charge
+  branch             String           @default("Main Branch")
+  attendanceCount    Int              @default(0)
+  issuesFound        String?
+  remarks            String?
+  completedAt        DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@index([scheduledDate])
+  @@index([status])
+  @@index([drillType])
+}
+
+// ----------------------------------------------------
+// MILESTONE 12: Centralized Notification Engine & Scheduled Alerts (§36, §44)
+// ----------------------------------------------------
+
+enum NotificationType {
+  ATTENDANCE_ALERT
+  NO_LOGIN
+  NO_LOGOUT
+  CHECKLIST_INCOMPLETE
+  REQUEST_STATUS
+  INCIDENT_ALERT
+  RESIGNATION_ALERT
+  SIMULATION_REMINDER
+  SLOT_DEADLINE
+  SYSTEM_NOTICE
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model Notification {
+  id        String               @id @default(uuid())
+  userId    String
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title     String
+  message   String
+  type      NotificationType     @default(SYSTEM_NOTICE)
+  priority  NotificationPriority @default(NORMAL)
+
+  isRead    Boolean              @default(false)
+  readAt    DateTime?
+  link      String?              // URL path to navigate to (e.g., /dashboard/attendance)
+  metadata  String?              // Optional JSON string for tracking entity IDs
+
+  createdAt DateTime             @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model Role {
+  id          String           @id @default(uuid())
+  name        String           @unique
+  description String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+}
+
+model Permission {
+  id          String           @id @default(uuid())
+  name        String           @unique // e.g. "users:read", "users:manage"
+  module      String                  // e.g. "users", "dashboard", "roles"
+  action      String                  // e.g. "read", "create", "update", "delete", "all"
+  description String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  rolePermissions RolePermission[]
+
+  @@index([module])
+}
+
+model UserRole {
+  id        String   @id @default(uuid())
+  userId    String
+  roleId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+}
+
+model RolePermission {
+  id           String   @id @default(uuid())
+  roleId       String
+  permissionId String
+  createdAt    DateTime @default(now())
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  userAgent String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+// -------------------------------------------------------------
+// Milestone 14: System Audit Logging & System Settings
+// -------------------------------------------------------------
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String   // e.g. "CREATE", "UPDATE", "DELETE", "APPROVE", "RECONCILE", "LOGIN"
+  module     String   // e.g. "attendance", "requests", "teachers", "operations", "system", "reports"
+  entityType String   // e.g. "TeacherAttendance", "DailyOutput", "SwitchRestDayRequest", "SystemSetting"
+  entityId   String?
+  details    String?  // Summary description of the audited event
+  oldValue   String?  // JSON stringified previous state
+  newValue   String?  // JSON stringified new state
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([module])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model SystemSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique // e.g. "PENALTY_UNAPPROVED_ABSENCE", "SHIFT_GRACE_MINUTES"
+  value       String   // String or JSON value
+  category    String   @default("GENERAL") // "ATTENDANCE", "PENALTY", "OPERATIONS", "NOTIFICATIONS"
+  description String?
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@index([category])
+  @@index([key])
+}
+
+// -------------------------------------------------------------
+// Multi-Branch Management
+// -------------------------------------------------------------
+
+model Branch {
+  id            String   @id @default(uuid())
+  name          String   @unique // e.g. "Atimonan", "Lopez", "Sto. Tomas", "Mauban", "San Pablo", "Gumaca"
+  code          String   @unique // e.g. "ATN", "LPZ", "STO", "MBN", "SPB", "GMC"
+  address       String?
+  contactNumber String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([isActive])
+}
+
