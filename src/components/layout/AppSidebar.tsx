@@ -221,6 +221,7 @@ export default function AppSidebar({
         <SectionLabel label="Core" />
         <NavItem href="/dashboard" icon="🏠" label="Dashboard" accent="blue" />
         {canRecordOperations && <NavItem href="/dashboard/operations" icon="⚡" label="Operations Workstation" accent="blue" />}
+        {(canRecordOperations || canManageOperations) && <NavItem href="/dashboard/operations/it-schedules" icon="🗓️" label="IT Schedules (§XXV)" accent="blue" />}
         {canManageOperations && <NavItem href="/dashboard/operations/attendance" icon="👥" label="Staff Attendance" accent="blue" />}
         {canViewManagementDashboard && <NavItem href="/dashboard/management" icon="📊" label="Management Dashboard" accent="violet" />}
 
@@ -236,6 +237,7 @@ export default function AppSidebar({
         {canSubmitConcerns && <NavItem href="/dashboard/concerns" icon="🎫" label="My Concerns & Tickets" accent="gold" />}
         {canViewSeating && !canManageSeating && <NavItem href="/dashboard/seating" icon="🪑" label="My Seat Assignment" accent="violet" />}
         {canViewOnboarding && !canManageOnboarding && <NavItem href="/dashboard/onboarding" icon="📋" label="My Onboarding" accent="green" />}
+        {user.roles.includes('TEACHER') && <NavItem href="/dashboard/certificate" icon="📜" label="My Certificate" accent="gold" />}
         {canReadNotifications && <NavItem href="/dashboard/notifications" icon="🔔" label="Notifications" accent="gold" />}
         {canViewReports && <NavItem href="/dashboard/reports" icon="📈" label="Reports & Cut-Offs" accent="green" />}
 

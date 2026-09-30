@@ -1,0 +1,26 @@
+# ============================================================
+# Netspeak Portal — Environment Variables
+# ============================================================
+
+DATABASE_URL="postgresql://postgres.ogzxghcfmaptvaeqlmss:%21%40%23Netspeak26%21%40%23@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connect_timeout=15&pool_timeout=30&socket_timeout=30&connection_limit=10"
+
+# Supabase PostgreSQL (Session-mode pooler port 5432 — used by Prisma Migrate & Seed)
+# NOTE: Use your Supabase project direct host for migrations (not the pooler host).
+# Format: db.<project-ref>.supabase.co:5432
+DIRECT_URL="postgresql://postgres.ogzxghcfmaptvaeqlmss:%21%40%23Netspeak26%21%40%23@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres"
+
+# Session Secret
+SESSION_SECRET="netspeak-portal-dev-session-secret-key-32-chars-long"
+
+# Gmail SMTP Configuration
+SMTP_HOST="smtp.gmail.com"
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER="test@gmail.com"
+SMTP_PASSWORD="app-password"
+SMTP_FROM="Netspeak Portal <noreply@netspeak.com>"
+
+# Application URL
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+NEXT_PUBLIC_SUPABASE_URL= https://ogzxghcfmaptvaeqlmss.supabase.co
+SUPABASE_SERVICE_ROLE_KEY= eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9nenhnaGNmbWFwdHZhZXFsbXNzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTk5NDQyOCwiZXhwIjoyMTA1NTcwNDI4fQ.Vmv5FT2sfx69cucGcPgLlYpQkyEN1On0yU1_JQ4EvF8

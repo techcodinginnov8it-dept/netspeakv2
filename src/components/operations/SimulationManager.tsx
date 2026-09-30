@@ -251,7 +251,7 @@ export default function SimulationManager({ simulations }: Props) {
                           drill.drillType === 'GENSET_OPERATION'
                             ? '#facc15'
                             : drill.drillType === 'INTERNET_OUTAGE'
-                            ? '#93c5fd'
+                            ? 'var(--ns-blue-light)'
                             : '#d8b4fe',
                         border: '1px solid var(--border-color)',
                       }}

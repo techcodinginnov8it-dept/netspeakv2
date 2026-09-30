@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useTransition } from 'react';
 import {
@@ -6,6 +6,8 @@ import {
   reportIncidentAction,
   updateIncidentStatusAction,
 } from '@/actions/tickets';
+import { uploadTicketEvidenceImageAction } from '@/actions/tickets';
+import { imageFileToDataUrl } from '@/lib/uploads/client';
 import {
   ConcernCategory,
   TicketUrgency,
@@ -83,6 +85,7 @@ export default function OperationsTicketingDesk({
   const [incCategory, setIncCategory] = useState<IncidentCategory>(IncidentCategory.BEHAVIORAL_MISCONDUCT);
   const [incDesc, setIncDesc] = useState('');
   const [incEvidence, setIncEvidence] = useState('');
+  const [incEvidenceFile, setIncEvidenceFile] = useState<File | null>(null);
   const [incAction, setIncAction] = useState('');
   const [incRemarks, setIncRemarks] = useState('');
 
@@ -149,6 +152,21 @@ export default function OperationsTicketingDesk({
   const handleCreateIncident = (e: React.FormEvent) => {
     e.preventDefault();
     startTransition(async () => {
+      let submittedEvidenceUrl = incEvidence || undefined;
+      if (incEvidenceFile) {
+        try {
+          const upload = await uploadTicketEvidenceImageAction(await imageFileToDataUrl(incEvidenceFile), 'INCIDENT');
+          if (upload.error || !upload.storagePath) {
+            setMessage({ type: 'error', text: upload.error || 'Failed to upload evidence image.' });
+            return;
+          }
+          submittedEvidenceUrl = upload.storagePath;
+        } catch (error: any) {
+          setMessage({ type: 'error', text: error.message || 'Failed to read evidence image.' });
+          return;
+        }
+      }
+
       const res = await reportIncidentAction({
         incidentDate: incDate,
         incidentTime: incTime,
@@ -156,7 +174,7 @@ export default function OperationsTicketingDesk({
         personInvolved: incPerson,
         category: incCategory,
         description: incDesc,
-        evidenceUrl: incEvidence || undefined,
+        evidenceUrl: submittedEvidenceUrl,
         actionTaken: incAction || undefined,
         remarks: incRemarks || undefined,
       });
@@ -176,7 +194,7 @@ export default function OperationsTicketingDesk({
               personInvolved: incPerson,
               category: incCategory,
               description: incDesc,
-              evidenceUrl: incEvidence,
+              evidenceUrl: submittedEvidenceUrl || null,
               actionTaken: incAction,
               remarks: incRemarks,
               status: IncidentStatus.REPORTED,
@@ -229,7 +247,7 @@ export default function OperationsTicketingDesk({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
-            🎫 Support Desk & Incident Reports
+            ðŸŽ« Support Desk & Incident Reports
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
             Central operations management desk for Teacher Concerns and Incident Tickets.
@@ -243,7 +261,7 @@ export default function OperationsTicketingDesk({
             className="btn btn-primary"
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
           >
-            <span>⚠️</span>
+            <span>âš ï¸</span>
             <span>File Incident Report</span>
           </button>
         )}
@@ -280,7 +298,7 @@ export default function OperationsTicketingDesk({
             padding: '0.5rem 1.25rem',
           }}
         >
-          💬 Teacher Concerns ({concerns.length})
+          ðŸ’¬ Teacher Concerns ({concerns.length})
         </button>
 
         <button
@@ -296,7 +314,7 @@ export default function OperationsTicketingDesk({
             padding: '0.5rem 1.25rem',
           }}
         >
-          ⚠️ Incident Reports ({incidents.length})
+          âš ï¸ Incident Reports ({incidents.length})
         </button>
       </div>
 
@@ -600,7 +618,7 @@ export default function OperationsTicketingDesk({
                 onClick={() => setActionConcern(null)}
                 style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '1.25rem', cursor: 'pointer' }}
               >
-                ✕
+                âœ•
               </button>
             </div>
 
@@ -727,7 +745,7 @@ export default function OperationsTicketingDesk({
                 onClick={() => setShowIncidentModal(false)}
                 style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '1.25rem', cursor: 'pointer' }}
               >
-                ✕
+                âœ•
               </button>
             </div>
 
@@ -831,6 +849,21 @@ export default function OperationsTicketingDesk({
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.35rem' }}>
+                  Upload Evidence Image (Optional)
+                </label>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => setIncEvidenceFile(e.target.files?.[0] || null)}
+                  className="input"
+                  style={{ width: '100%', padding: '0.5rem 0.75rem' }}
+                />
+                <p style={{ color: 'var(--text-dim)', fontSize: '0.75rem', marginTop: '0.35rem' }}>
+                  JPEG, PNG, or WebP up to 1 MB. Uploaded files are stored privately in Supabase Storage.
+                </p>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.35rem' }}>
                   Action Taken Immediately
                 </label>
                 <input
@@ -891,14 +924,14 @@ export default function OperationsTicketingDesk({
                 onClick={() => setSelectedIncident(null)}
                 style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '1.25rem', cursor: 'pointer' }}
               >
-                ✕
+                âœ•
               </button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
               <div>
                 <span style={{ color: 'var(--text-dim)' }}>Branch / Person Involved:</span>
-                <div style={{ fontWeight: 600 }}>{selectedIncident.branch} — {selectedIncident.personInvolved}</div>
+                <div style={{ fontWeight: 600 }}>{selectedIncident.branch} â€” {selectedIncident.personInvolved}</div>
               </div>
 
               <div>
@@ -955,7 +988,7 @@ export default function OperationsTicketingDesk({
                 className="btn btn-primary"
                 disabled={isPending}
               >
-                Mark Resolved ✓
+                Mark Resolved âœ“
               </button>
             </div>
           </div>

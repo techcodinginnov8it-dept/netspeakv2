@@ -24,7 +24,7 @@ export default function TeacherRegistrationForm() {
           margin: '0 auto 20px',
           fontSize: '32px'
         }}>
-          ✓
+          âœ“
         </div>
         <h2 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '12px' }}>Registration Submitted!</h2>
         <p style={{ color: 'var(--foreground-muted)', lineHeight: 1.6, marginBottom: '24px' }}>
@@ -52,7 +52,7 @@ export default function TeacherRegistrationForm() {
           fontWeight: 600,
           fontSize: '0.95rem'
         }}>
-          ⚠️ {state.error}
+          âš ï¸ {state.error}
         </div>
       )}
 
@@ -103,6 +103,21 @@ export default function TeacherRegistrationForm() {
             )}
           </div>
 
+
+          <div className="form-group">
+            <label htmlFor="contactEmail">Email Address *</label>
+            <input
+              id="contactEmail"
+              name="contactEmail"
+              type="email"
+              className="input"
+              placeholder="name@example.com"
+              required
+            />
+            {state.fieldErrors?.contactEmail && (
+              <span style={{ color: 'var(--danger)', fontSize: '0.8rem' }}>{state.fieldErrors.contactEmail[0]}</span>
+            )}
+          </div>
           <div className="form-group">
             <label htmlFor="birthday">Birthday *</label>
             <input
@@ -296,9 +311,69 @@ export default function TeacherRegistrationForm() {
         </div>
       </div>
 
+      {/* Section 4: Referral Information (§XXI) */}
+      <div className="card" style={{ padding: '28px', borderLeft: '4px solid var(--ns-blue)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+          <span style={{
+            background: 'var(--primary)',
+            color: '#fff',
+            borderRadius: '50%',
+            width: 28,
+            height: 28,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '0.85rem',
+            fontWeight: 700
+          }}>4</span>
+          <h3 style={{ fontSize: '1.2rem', fontWeight: 600 }}>Teacher Referral Program (§XXI)</h3>
+        </div>
+
+        <p style={{ fontSize: '0.9rem', color: 'var(--foreground-muted)', marginBottom: '16px', lineHeight: 1.5 }}>
+          Were you referred by a current active Netspeak teacher? If yes, please specify their name below so they receive credit for your referral.
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 500 }}>
+              <input
+                type="radio"
+                name="isReferred"
+                value="true"
+                id="referredYes"
+              />
+              Yes, I was referred
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 500 }}>
+              <input
+                type="radio"
+                name="isReferred"
+                value="false"
+                defaultChecked
+                id="referredNo"
+              />
+              No, direct application
+            </label>
+          </div>
+
+          <div className="form-group" style={{ marginTop: '8px' }}>
+            <label htmlFor="referringTeacherName">Referring Teacher&apos;s Full / Teaching Name</label>
+            <input
+              id="referringTeacherName"
+              name="referringTeacherName"
+              className="input"
+              placeholder="e.g. Teacher Maria Santos"
+            />
+            <span style={{ fontSize: '0.8rem', color: '#B45309', display: 'block', marginTop: '6px' }}>
+              ⚠️ <strong>SRS Compliance Notice:</strong> Per company policy (§XXI), if the referring teacher is not declared during initial registration, they will have no right to claim the referral fee retroactively.
+            </span>
+          </div>
+        </div>
+      </div>
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Link href="/login" style={{ color: 'var(--foreground-muted)', fontSize: '0.9rem' }}>
-          ← Already have an account? Sign in
+          â† Already have an account? Sign in
         </Link>
         <button
           type="submit"
@@ -306,7 +381,7 @@ export default function TeacherRegistrationForm() {
           disabled={isPending}
           style={{ minWidth: 200, padding: '12px 24px', fontSize: '1rem' }}
         >
-          {isPending ? 'Validating & Submitting...' : 'Submit Registration →'}
+          {isPending ? 'Validating & Submitting...' : 'Submit Registration â†’'}
         </button>
       </div>
     </form>

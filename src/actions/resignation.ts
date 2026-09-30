@@ -365,15 +365,45 @@ export async function deactivateResignedTeacherAction(
       });
     }
 
-    // Mark resignation as DEACTIVATED
+    // Mark resignation as DEACTIVATED and record TPCAP notification (§XVIII)
+    const now = new Date();
     await prisma.teacherResignation.update({
       where: { id: resignationId },
       data: {
         status: ResignationWorkflowStatus.DEACTIVATED,
-        deactivatedAt: new Date(),
+        deactivatedAt: now,
         deactivatedById: user.id,
+        tpcapNotified: true,
+        tpcapNotifiedAt: now,
       },
     });
+
+    // Notify Operations Managers and TPCAP coordinator (§XVIII)
+    const opsManagers = await prisma.user.findMany({
+      where: {
+        isActive: true,
+        userRoles: {
+          some: {
+            role: { name: { in: ['OPERATIONS_MANAGER', 'MANAGEMENT', 'ADMIN'] } },
+          },
+        },
+      },
+      select: { id: true },
+    });
+
+    for (const om of opsManagers) {
+      await prisma.notification.create({
+        data: {
+          userId: om.id,
+          title: `TPCAP Action: Teacher Resigned / Deactivated`,
+          message: `Offboarding complete for ${resignation.fullName} (${resignation.branch} - ${resignation.project}). Workstation reformatted and teacher removed from active TPCAP rosters (§XVIII).`,
+          type: 'RESIGNATION_ALERT',
+          priority: 'NORMAL',
+          link: '/dashboard/resignation/monitoring',
+          metadata: resignation.id,
+        },
+      });
+    }
 
     revalidatePath('/dashboard/resignation/monitoring');
     revalidatePath('/dashboard/teachers');

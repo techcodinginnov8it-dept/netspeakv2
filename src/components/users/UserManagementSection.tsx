@@ -1,9 +1,12 @@
 'use client';
 
-import { useActionState, useRef } from 'react';
-import { createUserAction, toggleUserStatusAction, UserActionState } from '@/actions/users';
+import React, { useActionState, useRef, useState } from 'react';
+import { createUserAction, toggleUserStatusAction, updateUserBranchAction, UserActionState } from '@/actions/users';
+import { BRANCH_NAMES } from '@/lib/branches';
 
 const initialState: UserActionState = {};
+
+const STAFF_ROLES = ['ADMIN', 'IT'];
 
 interface RoleOption {
   id: string;
@@ -18,6 +21,63 @@ interface UserItem {
   isActive: boolean;
   createdAt: Date;
   userRoles: { role: { name: string } }[];
+  staffProfile: { branch: string; roleType: string } | null;
+}
+
+function BranchEditor({
+  userId,
+  currentBranch,
+  hasBadBranch,
+  canUpdate,
+}: {
+  userId: string;
+  currentBranch: string | undefined;
+  hasBadBranch: boolean;
+  canUpdate: boolean;
+}) {
+  const [branch, setBranch] = useState(
+    currentBranch && BRANCH_NAMES.includes(currentBranch) ? currentBranch : ''
+  );
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function saveBranch() {
+    if (!branch || branch === currentBranch) return;
+    setIsSaving(true);
+    setError(null);
+    const result = await updateUserBranchAction(userId, branch);
+    setIsSaving(false);
+    setError(result.error ?? null);
+  }
+
+  if (!canUpdate) {
+    return React.createElement('span', null, hasBadBranch ? 'Unassigned' : currentBranch);
+  }
+
+  const options = [
+    React.createElement('option', { key: 'placeholder', value: '', disabled: true }, 'Assign branch...'),
+    ...BRANCH_NAMES.map(function createBranchOption(branchName) {
+      return React.createElement('option', { key: branchName, value: branchName }, branchName);
+    }),
+  ];
+
+  return React.createElement(
+    'div',
+    null,
+    React.createElement('select', {
+      'aria-label': 'Branch assignment',
+      value: branch,
+      onChange: function handleBranchChange(event: { target: { value: string } }) {
+        setBranch(event.target.value);
+      },
+    }, options),
+    React.createElement(
+      'button',
+      { type: 'button', onClick: saveBranch, disabled: isSaving || !branch || branch === currentBranch },
+      isSaving ? 'Saving...' : 'Save'
+    ),
+    error ? React.createElement('span', { title: error }, 'Error') : null
+  );
 }
 
 export default function UserManagementSection({
@@ -34,10 +94,14 @@ export default function UserManagementSection({
   currentUserId: string;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
+  const [selectedRole, setSelectedRole] = useState(roles[0]?.name || '');
+  const showBranchField = STAFF_ROLES.includes(selectedRole);
+
   const [state, formAction, isPending] = useActionState(async (prev: UserActionState | null, formData: FormData) => {
     const res = await createUserAction(prev, formData);
     if (res.success && formRef.current) {
       formRef.current.reset();
+      setSelectedRole(roles[0]?.name || '');
     }
     return res;
   }, initialState);
@@ -199,7 +263,8 @@ export default function UserManagementSection({
                 <select
                   name="roleName"
                   required
-                  defaultValue={roles[0]?.name || ''}
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value)}
                   style={{
                     width: '100%',
                     padding: '0.6rem 0.8rem',
@@ -217,6 +282,36 @@ export default function UserManagementSection({
                   ))}
                 </select>
               </div>
+
+              {showBranchField && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
+                    Branch Assignment <span style={{ color: 'var(--color-danger)' }}>*</span>
+                  </label>
+                  <select
+                    name="branch"
+                    required
+                    defaultValue=""
+                    style={{
+                      width: '100%',
+                      padding: '0.6rem 0.8rem',
+                      background: 'var(--bg-input)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '0.875rem',
+                      outline: 'none',
+                    }}
+                  >
+                    <option value="" disabled>Select branch…</option>
+                    {BRANCH_NAMES.map((b) => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </select>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                    This admin will only see data from the selected branch.
+                  </p>
+                </div>
+              )}
             </div>
 
             <button
@@ -252,6 +347,7 @@ export default function UserManagementSection({
               <th style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>User</th>
               <th style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>Username</th>
               <th style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>Role</th>
+              <th style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>Branch</th>
               <th style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>Status</th>
               <th style={{ padding: '0.75rem 1rem', fontWeight: 600, textAlign: 'right' }}>Actions</th>
             </tr>
@@ -260,6 +356,9 @@ export default function UserManagementSection({
             {users.map((u) => {
               const roleNames = u.userRoles.map((ur) => ur.role.name).join(', ') || 'NONE';
               const isSelf = u.id === currentUserId;
+              const isStaff = u.userRoles.some((ur) => STAFF_ROLES.includes(ur.role.name));
+              const currentBranch = u.staffProfile?.branch;
+              const hasBadBranch = isStaff && (!currentBranch || currentBranch === 'Main Branch');
 
               return (
                 <tr key={u.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
@@ -284,6 +383,19 @@ export default function UserManagementSection({
                     >
                       {roleNames}
                     </span>
+                  </td>
+                  {/* Branch column */}
+                  <td style={{ padding: '0.75rem 1rem' }}>
+                    {isStaff ? (
+                      <BranchEditor
+                        userId={u.id}
+                        currentBranch={currentBranch}
+                        hasBadBranch={hasBadBranch}
+                        canUpdate={canToggle}
+                      />
+                    ) : (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontStyle: 'italic' }}>—</span>
+                    )}
                   </td>
                   <td style={{ padding: '0.75rem 1rem' }}>
                     <span

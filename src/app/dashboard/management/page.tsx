@@ -2,6 +2,7 @@ import { requirePermission } from '@/lib/auth/rbac';
 import { prisma } from '@/lib/db';
 import ManagementDashboard, { ManagementDashboardData } from '@/components/management/ManagementDashboard';
 import { IncidentStatus, ResignationWorkflowStatus, SeatStatus, TicketStatus } from '@prisma/client';
+import { getLowBookingIntelligenceAction } from '@/actions/intelligence';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,7 +71,9 @@ export default async function ManagementDashboardPage() {
     prisma.newHireRecord.count({ where: { status: 'OVERDUE' } }),
   ]);
 
-  // Batch 3: Concerns, Incidents & Workstations
+  // Batch 3: Concerns, Incidents, Workstations & Intelligence
+  const lowBookingTeachers = await getLowBookingIntelligenceAction().catch(() => []);
+
   const [
     openConcernTickets,
     resolvedConcernTickets,
@@ -192,6 +195,7 @@ export default async function ManagementDashboardPage() {
       availableWorkstations,
       maintenanceWorkstations: pendingReformatWorkstations,
     },
+    lowBookingTeachers,
   };
 
   return (

@@ -1,11 +1,14 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import {
   approveSRDRequestAction,
   rejectSRDRequestAction,
   approveEarlyTimeOffAction,
   rejectEarlyTimeOffAction,
+  approveCashLoanRequestAction,
+  rejectCashLoanRequestAction,
 } from '@/actions/requests';
 
 interface SRDRequest {
@@ -41,12 +44,30 @@ interface ETORequest {
   };
 }
 
+interface CashLoanRequest {
+  id: string;
+  status: string;
+  amount: number;
+  termMonths: number;
+  deductionPerCycle: number;
+  repaymentSchedule: string | null;
+  reason: string;
+  approverRemarks: string | null;
+  approvedAt: Date | string | null;
+  createdAt: Date | string;
+  teacher: {
+    displayName: string;
+    realFullName: string | null;
+  };
+}
+
 interface RequestsApprovalQueueProps {
   srdRequests: SRDRequest[];
   etoRequests: ETORequest[];
+  cashLoanRequests: CashLoanRequest[];
 }
 
-type ActiveTab = 'srd' | 'eto';
+type ActiveTab = 'srd' | 'eto' | 'cash-loan';
 
 function statusBadge(status: string) {
   const map: Record<string, { color: string; bg: string; label: string }> = {
@@ -94,7 +115,7 @@ function ActionButtons({
   onDone,
 }: {
   requestId: string;
-  type: 'srd' | 'eto';
+  type: 'srd' | 'eto' | 'cash-loan';
   onDone: () => void;
 }) {
   const [isPending, startTransition] = useTransition();
@@ -108,8 +129,10 @@ function ActionButtons({
       try {
         if (type === 'srd') {
           await approveSRDRequestAction(requestId, remarks || undefined);
-        } else {
+        } else if (type === 'eto') {
           await approveEarlyTimeOffAction(requestId, remarks || undefined);
+        } else {
+          await approveCashLoanRequestAction(requestId, remarks || undefined);
         }
         onDone();
       } catch (e: any) {
@@ -128,8 +151,10 @@ function ActionButtons({
       try {
         if (type === 'srd') {
           await rejectSRDRequestAction(requestId, remarks);
-        } else {
+        } else if (type === 'eto') {
           await rejectEarlyTimeOffAction(requestId, remarks);
+        } else {
+          await rejectCashLoanRequestAction(requestId, remarks);
         }
         onDone();
       } catch (e: any) {
@@ -230,9 +255,10 @@ function ActionButtons({
   );
 }
 
-export default function RequestsApprovalQueue({ srdRequests, etoRequests }: RequestsApprovalQueueProps) {
+export default function RequestsApprovalQueue({ srdRequests, etoRequests, cashLoanRequests }: RequestsApprovalQueueProps) {
   const [tab, setTab] = useState<ActiveTab>('srd');
   const [, startTransition] = useTransition();
+  const router = useRouter();
 
   const tabStyle = (active: boolean): React.CSSProperties => ({
     padding: '0.55rem 1.25rem',
@@ -248,6 +274,7 @@ export default function RequestsApprovalQueue({ srdRequests, etoRequests }: Requ
 
   const pendingSRD = srdRequests.filter((r) => r.status === 'PENDING').length;
   const pendingETO = etoRequests.filter((r) => r.status === 'PENDING').length;
+  const pendingCashLoans = cashLoanRequests.filter((r) => r.status === 'PENDING').length;
 
   const thStyle: React.CSSProperties = {
     padding: '10px 14px',
@@ -316,6 +343,23 @@ export default function RequestsApprovalQueue({ srdRequests, etoRequests }: Requ
             </span>
           )}
         </button>
+        <button style={tabStyle(tab === 'cash-loan')} onClick={() => setTab('cash-loan')}>
+          Cash Loan
+          {pendingCashLoans > 0 && (
+            <span
+              style={{
+                marginLeft: '0.5rem',
+                background: '#f59e0b',
+                color: '#fff',
+                borderRadius: '999px',
+                fontSize: '0.7rem',
+                padding: '1px 6px',
+              }}
+            >
+              {pendingCashLoans}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* SRD Table */}
@@ -365,7 +409,7 @@ export default function RequestsApprovalQueue({ srdRequests, etoRequests }: Requ
                         <ActionButtons
                           requestId={req.id}
                           type="srd"
-                          onDone={() => startTransition(() => {})}
+                          onDone={() => startTransition(() => router.refresh())}
                         />
                       ) : (
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
@@ -450,7 +494,7 @@ export default function RequestsApprovalQueue({ srdRequests, etoRequests }: Requ
                           <ActionButtons
                             requestId={req.id}
                             type="eto"
-                            onDone={() => startTransition(() => {})}
+                            onDone={() => startTransition(() => router.refresh())}
                           />
                         ) : (
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
@@ -465,6 +509,68 @@ export default function RequestsApprovalQueue({ srdRequests, etoRequests }: Requ
                     </tr>
                   );
                 })
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {tab === 'cash-loan' && (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+            <thead>
+              <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
+                <th style={thStyle}>Teacher</th>
+                <th style={thStyle}>Amount</th>
+                <th style={thStyle}>Term</th>
+                <th style={thStyle}>Deduction / cycle</th>
+                <th style={thStyle}>Reason</th>
+                <th style={thStyle}>Status</th>
+                <th style={thStyle}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {cashLoanRequests.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-dim)', padding: '2.5rem' }}>
+                    No cash loan requests found.
+                  </td>
+                </tr>
+              ) : (
+                cashLoanRequests.map((req) => (
+                  <tr key={req.id}>
+                    <td style={tdStyle}>
+                      <div style={{ fontWeight: 600 }}>{req.teacher.displayName}</div>
+                      {req.teacher.realFullName && (
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)' }}>{req.teacher.realFullName}</div>
+                      )}
+                    </td>
+                    <td style={tdStyle}>PHP {Number(req.amount).toLocaleString()}</td>
+                    <td style={tdStyle}>{req.termMonths} mo</td>
+                    <td style={tdStyle}>PHP {Number(req.deductionPerCycle).toFixed(2)}</td>
+                    <td style={{ ...tdStyle, maxWidth: '220px' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>{req.reason}</span>
+                    </td>
+                    <td style={tdStyle}>{statusBadge(req.status)}</td>
+                    <td style={tdStyle}>
+                      {req.status === 'PENDING' ? (
+                        <ActionButtons
+                          requestId={req.id}
+                          type="cash-loan"
+                          onDone={() => startTransition(() => router.refresh())}
+                        />
+                      ) : (
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+                          {req.approverRemarks ? (
+                            <span title={req.approverRemarks}>
+                              {req.approverRemarks.slice(0, 40)}{req.approverRemarks.length > 40 ? '…' : ''}
+                            </span>
+                          ) : '—'}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>

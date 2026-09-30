@@ -10,9 +10,10 @@ import Image from 'next/image';
 interface AppHeaderProps {
   user: AuthenticatedUser;
   branches?: Array<{ name: string; code: string }>;
+  isDutyLocked?: boolean;
 }
 
-export default function AppHeader({ user, branches = [] }: AppHeaderProps) {
+export default function AppHeader({ user, branches = [], isDutyLocked = false }: AppHeaderProps) {
   const primaryRole = user.roles[0] || 'USER';
   const searchParams = useSearchParams();
   const currentBranch = searchParams.get('branch') || 'ALL';
@@ -173,33 +174,57 @@ export default function AppHeader({ user, branches = [] }: AppHeaderProps) {
 
         <NotificationBell />
 
-        <form action={logoutAction}>
-          <button
-            type="submit"
+        {isDutyLocked ? (
+          <div
+            title="Sign out is locked during active duty. You must submit your daily shift departure / time-out from the Teacher Attendance widget first."
             style={{
-              background: 'rgba(255,255,255,0.12)',
-              border: '1px solid rgba(255,255,255,0.28)',
-              color: 'rgba(255,255,255,0.9)',
-              padding: '0.45rem 1rem',
+              background: 'rgba(239, 68, 68, 0.18)',
+              border: '1px solid rgba(239, 68, 68, 0.45)',
+              color: '#FEE2E2',
+              padding: '0.45rem 0.85rem',
               borderRadius: 'var(--radius-sm)',
-              fontSize: '0.8rem',
-              fontWeight: 600,
+              fontSize: '0.78rem',
+              fontWeight: 700,
               fontFamily: 'var(--font-heading)',
-              transition: 'all var(--ease-fast)',
-              cursor: 'pointer',
-            }}
-            onMouseEnter={e => {
-              (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.22)';
-              (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.5)';
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.12)';
-              (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.28)';
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'not-allowed',
+              userSelect: 'none',
             }}
           >
-            Sign Out
-          </button>
-        </form>
+            <span>🔒</span>
+            <span>On Duty (Locked)</span>
+          </div>
+        ) : (
+          <form action={logoutAction}>
+            <button
+              type="submit"
+              style={{
+                background: 'rgba(255,255,255,0.12)',
+                border: '1px solid rgba(255,255,255,0.28)',
+                color: 'rgba(255,255,255,0.9)',
+                padding: '0.45rem 1rem',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                fontFamily: 'var(--font-heading)',
+                transition: 'all var(--ease-fast)',
+                cursor: 'pointer',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.22)';
+                (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.5)';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.12)';
+                (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.28)';
+              }}
+            >
+              Sign Out
+            </button>
+          </form>
+        )}
       </div>
     </header>
   );

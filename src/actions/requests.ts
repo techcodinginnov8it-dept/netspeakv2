@@ -291,3 +291,106 @@ export async function rejectEarlyTimeOffAction(requestId: string, remarks: strin
   revalidatePath('/dashboard/requests');
   return { success: true };
 }
+
+const CashLoanRequestSchema = z.object({
+  amount: z.coerce.number().min(1, 'Loan amount must be greater than zero'),
+  termMonths: z.coerce.number().int().min(1, 'At least 1 month is required').max(24, 'Loan term cannot exceed 24 months'),
+  reason: z.string().min(5, 'A clear reason is required'),
+  termsAcknowledged: z.preprocess((value) => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') return value === 'true' || value === 'on' || value === '1';
+    return Boolean(value);
+  }, z.boolean().refine((value) => value === true, 'You must acknowledge the repayment terms before submitting.')),
+});
+
+export async function submitCashLoanRequestAction(formData: FormData) {
+  try {
+    const user = await requirePermission('requests:submit');
+
+    const teacher = await prisma.teacherProfile.findFirst({
+      where: { userId: user.id },
+    });
+
+    if (!teacher) {
+      return { error: 'No teacher profile found for your account.' };
+    }
+
+    const rawData = {
+      amount: formData.get('amount'),
+      termMonths: formData.get('termMonths'),
+      reason: formData.get('reason'),
+      termsAcknowledged: formData.get('termsAcknowledged'),
+    };
+
+    const parsed = CashLoanRequestSchema.safeParse(rawData);
+    if (!parsed.success) {
+      console.error('Cash loan validation failed:', parsed.error.flatten());
+      return { error: 'Please check the loan details and acknowledge the repayment terms.' };
+    }
+
+    const deductionPerCycle = Number((parsed.data.amount / parsed.data.termMonths).toFixed(2));
+    const repaymentSchedule = `Paid over ${parsed.data.termMonths} month(s) at PHP ${deductionPerCycle.toFixed(2)} per cycle`;
+
+    const request = await prisma.cashLoanRequest.create({
+      data: {
+        teacherId: teacher.id,
+        amount: parsed.data.amount,
+        termMonths: parsed.data.termMonths,
+        reason: parsed.data.reason.trim(),
+        deductionPerCycle,
+        repaymentSchedule,
+        termsAcknowledged: true,
+        status: 'PENDING',
+      },
+    });
+
+    revalidatePath('/dashboard/requests');
+    return { success: true, requestId: request.id };
+  } catch (error: any) {
+    console.error('Cash loan submission failed:', error);
+    return { error: error.message || 'Failed to submit cash loan request.' };
+  }
+}
+
+export async function approveCashLoanRequestAction(requestId: string, remarks?: string) {
+  const user = await requirePermission('requests:approve');
+
+  const request = await prisma.cashLoanRequest.findUnique({ where: { id: requestId } });
+  if (!request) {
+    throw new Error('Cash loan request not found.');
+  }
+
+  await prisma.cashLoanRequest.update({
+    where: { id: requestId },
+    data: {
+      status: 'APPROVED',
+      approverId: user.id,
+      approverRemarks: remarks?.trim() || null,
+      approvedAt: new Date(),
+    },
+  });
+
+  revalidatePath('/dashboard/requests');
+  return { success: true };
+}
+
+export async function rejectCashLoanRequestAction(requestId: string, remarks: string) {
+  const user = await requirePermission('requests:approve');
+
+  if (!remarks || remarks.trim().length < 3) {
+    throw new Error('A rejection reason is required.');
+  }
+
+  await prisma.cashLoanRequest.update({
+    where: { id: requestId },
+    data: {
+      status: 'REJECTED',
+      approverId: user.id,
+      approverRemarks: remarks.trim(),
+      approvedAt: new Date(),
+    },
+  });
+
+  revalidatePath('/dashboard/requests');
+  return { success: true };
+}

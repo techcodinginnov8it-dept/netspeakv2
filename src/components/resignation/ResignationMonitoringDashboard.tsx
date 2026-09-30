@@ -301,10 +301,10 @@ export default function ResignationMonitoringDashboard({
         </div>
 
         <div className="card" style={{ padding: '1.25rem' }}>
-          <div style={{ fontSize: '0.8rem', color: '#93c5fd', textTransform: 'uppercase', fontWeight: 600 }}>
+          <div style={{ fontSize: '0.8rem', color: 'var(--ns-blue-light)', textTransform: 'uppercase', fontWeight: 600 }}>
             Pending IT Clearance
           </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.25rem', color: '#93c5fd' }}>
+          <div style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.25rem', color: 'var(--ns-blue-light)' }}>
             {pendingITClearance}
           </div>
         </div>
@@ -542,7 +542,7 @@ export default function ResignationMonitoringDashboard({
                             setActionNotes('');
                           }}
                           className="btn btn-secondary"
-                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: '#93c5fd' }}
+                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: 'var(--ns-blue-light)' }}
                         >
                           IT Clearance
                         </button>

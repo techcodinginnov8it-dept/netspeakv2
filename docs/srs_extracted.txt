@@ -1,0 +1,834 @@
+System Requirement Specification & Feature Map: Netspeak Portal
+1. Account Management & Authentication
+• Deduplication Check:
+o Validation rules prevent duplicate account creation based on exact matches on
+Complete Name + Birthday or Cellphone Number.
+• Profile Fields:
+o Personal: Teacher Name (Display/Teaching Name), Real Complete Name,
+Birthday, Cellphone Number, Emergency Contact Details, Complete Address.
+o Academic: School Attended, Course and Major.
+o Operational: Launch Date (Start Date), Project Type (FTEX, FT, TTP), Department
+(Domestic, Overseas/Global), Assigned Rest Day, 51Talk Portal Login (Username,
+Password).
+• 2-Tier Approval Workflow:
+o Step 1: Teacher submits registration form.
+o Step 2: Admin Review verifies completeness and input accuracy.
+o Step 3: Manager Final Approval confirms access.
+o Step 4: Automated email delivery sends generated credentials upon final
+approval.
+2. Time, Attendance & Kiosk Management
+• Freshness Check (Photo Capture):
+o Camera selfie verification required at login; serves as official arrival timestamp.
+• Shift Window & Alert Triggers:
+o T-30 min: Early login window opens.
+o T-10 min: Alert sent to Center Admin if the teacher has not completed the
+Freshness Check.
+o T-0 min (Shift Start): Real-time notification sent to Admin and Manager flagging
+teacher as Late or Absent for immediate contact and outreach.
+• Kiosk Portal Lockdown:
+
+-- 1 of 29 --
+
+o Portal window locks during active shift hours.
+o Logout button disabled until 15 minutes before shift end (or exact shift end).
+o System prompts automated Windows/PC shutdown sequence upon successful
+end-of-shift logout.
+• Early Arrival / Late Stay Policy Modal:
+o If logged in >2 hours prior to shift or remaining post-shift, an unclosable
+banner/modal displays: "This workstation is strictly for official Netspeak work
+purposes. Personal browsing is prohibited."
+3. Daily Output Reporting & Workflows
+Plain Text
+Shift Complete / Pre-Logout
+│
+├── 1. Daily Output Entry Form
+│ ├── Open Slots vs. Booked Slots
+│ └── Attendance Exceptions (Class Tardiness, Absent Class, Early Leave)
+│
+├── 2. Mandatory Announcement Modal (Must click "Acknowledge" to proceed)
+│
+└── 3. Logout Completion ──> Optional Auto-PC Shutdown
+• Grace Period & Reporting Edits:
+o If unsubmitted, reminder alert prompts the teacher on the next day's login.
+o Daily output reports allow edits/corrections for up to 48 hours post-shift.
+4. Self-Service Requests & Approvals
+• Switch Rest Day:
+o Form collects Target Date, Swapped Date, and Reason.
+o Automation Rule: Upon Manager approval, the weekly master schedule updates
+rest days automatically for accurate shift tracking.
+• Cash Loan:
+
+-- 2 of 29 --
+
+o Standard request form with explicit policy terms and automatic schedule-of-
+deductions/due-date reminders.
+• Equipment Replacement & Maintenance:
+o Ticketing tab for hardware, headset, or PC peripheral issues.
+• Early Time-Off (Auto-Approval Rule):
+o Teacher submits request $\rightarrow$ Manager has 30 minutes to act.
+o If manager takes no action within 30 minutes, request is auto-approved. System
+displays a pop-up checklist reminding the teacher of steps to avoid client
+tardiness.
+• Bidirectional Notifications:
+o All request status updates (Approved, Rejected, Pending Info) must push an
+automated email/system notification back to the teacher with the reviewer's
+notes.
+5. Admin & Manager Monitoring Dashboards
+• Teacher Directory & Status Matrix:
+o Filterable tab listing teachers by Launch Date, Branch, and Status (Active,
+Resigned, Terminated, Maternity Leave, Medical Leave).
+o Inactivity Flag: Automatic alert sent to Admin and Manager if an Active teacher
+has no login for 2 consecutive days.
+• Low-Booking Intelligence Tab:
+Dashboard Filter Threshold / Trigger Recommended Action
+Daily Low
+Booking
+Output from previous day below
+target Admin requests TPCAP profile upgrade
+3-Day Low
+Booking
+Under-booking for 3 consecutive
+days Marked URGENT for manager intervention
+5-Day Low
+Booking
+Under-booking for 5 consecutive
+days
+Marked CRITICAL for immediate
+corrective action
+• Admin Operations Tab:
+o Centralized management forms, logs, and day-to-day administrative checklists.
+
+-- 3 of 29 --
+
+• Lesson Fee Automation:
+o Automatic data sync scheduled 3 days after each cutoff (15th and 30th/31st) to
+pull lesson fees without manual data entry.
+• Birthday Notification Banner:
+o Company-wide banner displayed on teacher birthdays, featuring direct-action
+buttons for Managers/Officers to assign incentives (Cash Voucher / In-Kind
+Token).
+******************************************
+Hi IT Team! Good day!
+Please see below the UPDATED and CONSOLIDATED Portal Development Requirements. I have
+organized everything by department and included the additional requirements regarding
+Admin/IT attendance, mandatory logout checklists, automatic notifications, SRD/absence
+monitoring, and daily/weekly/monthly summaries.
+Please use this version as the main and updated reference for the portal development. Kindly
+disregard the previous versions to avoid confusion.
+PORTAL DEVELOPMENT REQUIREMENTS
+Admin, IT, Teacher & Operations Management Portal
+MAIN OBJECTIVE
+We would like to centralize our Admin, IT, Teacher, and Operations processes into one portal.
+The system should minimize manual encoding and Google Form/Google Sheet consolidation.
+Information entered in one module should automatically sync with the appropriate attendance,
+monitoring, notification, and reporting modules.
+I. ADMIN MODULE
+1. Admin Time In / Time Out
+Time In
+
+-- 4 of 29 --
+
+Admin should simply click TIME IN.
+The system should automatically record:
+• Admin Name
+• Branch
+• Date
+• Actual Time In
+• Scheduled Shift
+Time Out
+Before an Admin can log out, they must complete the Admin End-of-Shift Checklist.
+• TIME OUT should remain disabled until the checklist is completed.
+• After completing the checklist, the Admin can log out.
+• The system should record the checklist completion time.
+Admin Checklist Reference:
+Admin End-of-Shift Checklist
+II. ADMIN ATTENDANCE
+Create a dedicated Admin Attendance Dashboard.
+Record:
+• Admin Name
+• Branch
+• Date
+• Scheduled Shift
+• Time In
+• Time Out
+• Present
+• Late
+
+-- 5 of 29 --
+
+• Early Out
+• Absent
+• SRD
+• Absence Reason
+• No Login
+• No Logout
+• Checklist Status
+• Remarks
+The actual login/logout should automatically sync with the attendance.
+III. ADMIN NO LOGIN / NO LOGOUT ALERT
+The system should automatically monitor Admin attendance.
+If an Admin:
+• Does not log in on a scheduled workday
+• Logs in but does not log out
+• Does not complete the required checklist
+The system should automatically notify:
+OM Melmar
+OM Prei
+Notification should contain:
+• Admin Name
+• Branch
+• Date
+• Scheduled Shift
+• Login Status
+• Logout Status
+
+-- 6 of 29 --
+
+• Checklist Status
+IV. ADMIN SRD & ABSENCE
+Create an Admin SRD and Absence monitoring system.
+If an Admin files an SRD or is tagged absent:
+• Record it in Admin Attendance.
+• Notify the concerned management personnel.
+• Include it in the daily attendance summary.
+Notification should include:
+• Admin Name
+• Branch
+• Date
+• SRD/Absent Status
+• Reason
+• Approval Status
+V. ADMIN DAILY/WEEKLY/MONTHLY ATTENDANCE SUMMARY
+Daily Summary
+Show:
+• Total Admins Scheduled
+• Present
+• Late
+• Early Out
+• Absent
+• SRD
+• No Login
+
+-- 7 of 29 --
+
+• No Logout
+• Incomplete Checklist
+Weekly Summary
+Show attendance per Admin, including:
+• Attendance percentage
+• Absences
+• SRDs
+• Late
+• Early Out
+• No Login
+• No Logout
+Monthly Summary
+Generate the complete monthly attendance report.
+VI. ADMIN TASK MONITORING
+The portal should monitor Admin tasks.
+Daily
+• Tasks completed
+• Pending tasks
+• Teacher concerns
+• Attendance monitoring
+• Resignations processed
+• SRDs processed
+• Incident reports
+• Other assigned tasks
+Weekly & Monthly
+
+-- 8 of 29 --
+
+Generate a summary of all completed and pending Admin tasks.
+VII. TEACHER RESIGNATION MODULE
+Teachers should be able to file their resignation through the portal.
+Required fields:
+• Full Name
+• Branch
+• Project
+• Date Filed
+• Effectivity Date
+• Reason
+• Resignation Letter
+• Signature
+• Remarks
+Resignation Reasons
+• Personal / Family Reasons
+• Health / Medical Reasons
+• Schedule Conflict
+• Found Another Job / Better Opportunity
+• Higher Pay / Compensation
+• Studies / Education
+• Relocation
+• Workload / Burnout
+• Project / Work Concerns
+• Management / Workplace Concerns
+• Internet / Equipment Issues
+
+-- 9 of 29 --
+
+• Career Change / No Longer Interested in Teaching
+• Other / Not Specified
+VIII. RESIGNATION LETTER
+Create a standard resignation letter template containing:
+• Teacher's Name
+• Date
+• Effectivity Date
+• Reason
+• Signature
+Once submitted, automatically notify:
+• Admin
+• Operations Manager
+IX. EXIT INTERVIEW
+The Operations Manager Assistant will open available Exit Interview slots every 1st day of the
+month.
+Resigned teachers should be able to:
+• View available slots
+• Book a slot
+• Receive confirmation
+Send a reminder on the day of the scheduled Exit Interview.
+X. RESIGNATION MONITORING
+Create a weekly and monthly resignation dashboard.
+Show:
+
+-- 10 of 29 --
+
+• Teacher Name
+• Branch
+• Project
+• Date Filed
+• Effectivity Date
+• Reason
+• Exit Interview Status
+Reports should be available:
+• Weekly
+• Monthly
+• By Branch
+• By Project
+• By Resignation Reason
+Reference:
+Resignation Monitoring Sheet
+Automatic Sync
+Teacher Files Resignation → Resignation Monitoring → Notifications → Exit Interview →
+IT/TPCAP Actions
+XI. TEACHER ATTENDANCE
+Admins should manually verify teacher attendance.
+Attendance should automatically sync with teacher login/logout.
+Status options:
+• Present
+• Late
+• Early Out
+• Absent – Valid
+
+-- 11 of 29 --
+
+• Absent – Invalid
+• No Logout
+• SRD
+• Approved Rest Day
+Admin should be able to enter the reason for absence.
+XII. TEACHER NO-LOGOUT ALERT
+If a teacher logs in but does not log out:
+• Automatically flag the teacher.
+• Notify Admin.
+• Show the teacher in the next-day No Logout Summary for immediate action.
+XIII. SWITCH REST DAY (SRD)
+Create an SRD module.
+Fields:
+• Date Filed
+• Full Name
+• Teacher Name
+• Original Rest Day
+• Date Not Working
+• Switched Work Date
+• Reason
+• Approval Status
+• Approver
+• Remarks
+Approval
+
+-- 12 of 29 --
+
+Teacher → OM Melmar → Approved/Rejected
+Once approved:
+SRD → Automatically update Attendance/Schedule
+Notify:
+• OM Melmar
+• OM Prei
+Teacher SRD reference:
+Teacher SRD Reference
+Admin SRD reference:
+Admin SRD Reference
+ADMIN'S DAILY TASKS CHECKLIST
+This isn’t just a to-do list—it also makes tracking output and accountability easy.
+XIV. INCIDENT REPORT TICKET
+Create an Incident Report ticket.
+Include:
+• Date
+• Time
+• Reporter
+• Branch
+• Person Involved
+• Category
+• Description
+• Evidence/Attachment
+• Action Taken
+• Remarks
+• Status
+
+-- 13 of 29 --
+
+Automatically notify:
+• OM Melmar
+• OM Prei
+Reference:
+Incident Report Reference
+XV. TEACHER CONCERN TICKET
+Teachers should have a Submit a Concern/Ticket option.
+Categories:
+• Technical Concern
+• Attendance Concern
+• Schedule Concern
+• Student Concern
+• Admin Concern
+• Project Concern
+• Payment Concern
+• Emergency
+• Other
+Correct Emergency Contacts
+Melmar Doce
+Operations Manager
+0910 446 1091
+melmsdoce@gmail.com
+Prei Doce
+Operations Manager Assistant
+0948 078 65882
+preidaet26@gmail.com
+
+-- 14 of 29 --
+
+XVI. TEACHER SOCIAL MEDIA MONITORING
+Once a teacher successfully logs in:
+Teacher Login → Social Media Monitoring Starts
+Monitoring should follow the actual login/logout period.
+XVII. TEACHER DAILY/WEEKLY/MONTHLY REPORTS
+Generate reports per teacher, branch, project, date range, and cut-off.
+Daily
+• Attendance
+• Login
+• Logout
+• Late
+• Early Out
+• Low Bookings
+• Slot Activity
+• Other concerns
+Weekly
+Summary of the above.
+Monthly
+Complete teacher activity summary.
+Cut-Off
+Management should be able to generate the report anytime.
+XVIII. SEATING ARRANGEMENT
+Create a Branch Seating Arrangement module.
+Include:
+
+-- 15 of 29 --
+
+• Branch
+• Computer/Workstation Number
+• Seat Number
+• Assigned Teacher
+• Schedule
+• Status
+Resigned/AWOL Teacher
+When a teacher is tagged Resigned or AWOL:
+1. Notify IT.
+2. Identify assigned computer.
+3. Create IT reformatting task.
+4. Remove teacher from active assignment.
+5. Automatically generate notification to TPCAP.
+6. Remove teacher from the applicable TPCAP list.
+XIX. SLOT OPENING REMINDER
+Teachers must open slots 1 month in advance.
+The system should:
+• Monitor slot-opening compliance.
+• Send a reminder 3 days before the required opening date.
+• Show teachers who have/have not opened slots.
+• Show deadline.
+• Show compliance status.
+XX. CERTIFICATE OF SERVICE
+Create an automated Certificate of Service generator.
+
+-- 16 of 29 --
+
+Pull information from the teacher profile:
+• Full Name
+• Position
+• Project
+• Branch
+• Start Date
+• End Date
+• Other required information
+Use a standard company template.
+XXI. TEACHER REFERRAL MONITORING
+During application, applicants must answer:
+“Were you referred by a current teacher?”
+If YES, they must provide the referring teacher's name.
+Monitor:
+• Applicant
+• Referring Teacher
+• Application Date
+• Hiring Status
+• Starting Date
+• Referral Status
+• Referral Fee Status
+Important: If the applicant does not identify the referring teacher during application, the
+referring teacher will have no right to claim the referral fee.
+XXII. PENALTY MONITORING
+
+-- 17 of 29 --
+
+The system should identify potential penalties based on attendance information.
+Possible violations:
+• Invalid Absence
+• Unapproved Absence
+• Cancellation
+• Other configured violations
+Penalty amount should be configurable:
+₱_____ per applicable violation
+Automatic Sync
+Login/Logout → Attendance → Absence Validation → Penalty → Cut-Off Report
+XXIII. IT TIME IN / TIME OUT
+IT personnel should have:
+TIME IN → WORK → CHECKLIST → TIME OUT
+Record:
+• IT Name
+• Branch
+• Date
+• Time In
+• Time Out
+• Attendance Status
+Before logging out, IT must complete the required checklist.
+Important: Remove the document-uploading requirement from the existing IT checklist.
+Reference:
+IT Logout Checklist
+
+-- 18 of 29 --
+
+XXIV. IT NO LOGIN / NO LOGOUT / CHECKLIST ALERT
+If an IT:
+• Does not log in
+• Logs in but does not log out
+• Does not complete the checklist
+Automatically notify:
+OM Melmar + OM Prei
+IT should not be able to log out if the checklist is incomplete.
+XXV. IT WEEKLY & MONTHLY TASKS
+Weekly Checklist
+IT Weekly Tasks Checklist
+Monthly Checklist
+IT Monthly Tasks Checklist
+Generate:
+• Daily IT Report
+• Weekly IT Report
+• Monthly IT Report
+• Completed Tasks
+• Pending Tasks
+• IT Concerns
+• Equipment Issues
+• System Issues
+XXVI. ADMIN & IT MASTER ATTENDANCE REPORT
+Create one centralized report:
+
+-- 19 of 29 --
+
+Employe
+e
+Departmen
+t
+Branc
+h
+Dat
+e
+Tim
+e In
+Tim
+e
+Out
+Statu
+s
+SR
+D
+Absen
+t
+Lat
+e
+Earl
+y
+Out
+No
+Logi
+n
+No
+Logou
+t
+Checklis
+t
+Reports should be available:
+• Daily
+• Weekly
+• Monthly
+• Per Employee
+• Per Branch
+• Per Department
+XXVII. DAILY ADMIN & IT ATTENDANCE NOTIFICATION
+Generate an automatic daily summary.
+Admin
+• Present
+• Late
+• Early Out
+• Absent
+• SRD
+• No Login
+• No Logout
+• Incomplete Checklist
+IT
+• Present
+• Late
+• Early Out
+
+-- 20 of 29 --
+
+• Absent
+• No Login
+• No Logout
+• Incomplete Checklist
+Automatically notify the appropriate management personnel, particularly:
+OM Melmar and OM Prei
+XXVIII. INTERNET / POWER / GENSET SIMULATION
+Schedule simulations:
+Every 1st and 3rd Saturday of the month
+Activities:
+• Internet outage simulation
+• Power outage simulation
+• Genset operation
+• Backup internet testing
+• Emergency procedures
+Notify:
+• Teachers
+• Admins
+• IT
+• Managers
+• COs
+Send an automatic reminder before the simulation.
+Record:
+• Attendance
+• Completion
+
+-- 21 of 29 --
+
+• Issues
+• Remarks
+• Person Responsible
+XXIX. NEWLY HIRED TEACHER MONITORING
+Create a New Hire Dashboard showing:
+• Teacher Name
+• Starting Date
+• Branch
+• Project
+• Requirements
+• Training
+• Tagging
+• Completion %
+• Slot Opening Eligibility
+Generate:
+• Daily Summary
+• Weekly Summary
+• Monthly Summary
+XXX. NEW TEACHER REQUIREMENTS CHECKLIST
+New teachers should have at least 3 days to complete requirements before they can open
+slots.
+Requirements:
+• Bank Account
+• Contract Signing
+
+-- 22 of 29 --
+
+• Valid ID
+• Proof of Education
+• Presentable Professional Picture
+• Intro Recording
+• NBI
+• Self-Video Introduction
+• SK12 Tagging
+• TPCAP Tagging
+• Additional Special Taggings
+• Global Teacher Tagging
+• Flowers
+• Signed Double SA
+• TTP Orientation
+• Different Trainings
+• TESOL
+• ZTP Training
+• Learning Hub
+• Props
+The system should show:
+• Completed
+• Pending
+• Missing
+• Verified
+• Days Remaining
+• Eligible / Not Eligible to Open Slots
+Eligibility Flow
+
+-- 23 of 29 --
+
+New Hire → Requirements Completion → Admin Verification → Eligible to Open Slots
+XXXI. MANAGEMENT DASHBOARD
+Management should have a centralized dashboard.
+Teacher
+• Active Teachers
+• Newly Hired
+• Resigned
+• AWOL
+• Attendance
+• Late
+• Early Out
+• No Logout
+• Low Bookings
+• SRD
+• Incidents
+• Penalties
+Admin
+• Attendance
+• Daily Tasks
+• Weekly Tasks
+• Monthly Tasks
+• Absences
+• SRDs
+• No Login
+• No Logout
+
+-- 24 of 29 --
+
+• Checklist Compliance
+IT
+• Attendance
+• Daily Tasks
+• Weekly Tasks
+• Monthly Tasks
+• Tickets
+• Equipment Issues
+• System Issues
+• Simulations
+• No Login
+• No Logout
+• Checklist Compliance
+Recruitment
+• Applicants
+• Newly Hired
+• Requirements
+• Pending Requirements
+• Referrals
+• Referral Fees
+Resignation
+• Weekly Resignations
+• Monthly Resignations
+• Resignation Reasons
+• Exit Interviews
+• Effectivity Dates
+
+-- 25 of 29 --
+
+• Branch/Project Breakdown
+XXXII. AUTOMATIC SYSTEM SYNCHRONIZATION
+The system should automatically connect related modules.
+Admin/IT Login
+Login → Attendance → Daily Report
+Admin/IT Logout
+Checklist → Logout → Attendance → Daily Report
+Incomplete Checklist
+Incomplete Checklist → Logout Disabled → Alert
+No Login
+Scheduled Workday → No Login → OM Melmar + OM Prei Notification
+No Logout
+Login Recorded → No Logout → OM Melmar + OM Prei Notification
+Admin SRD
+SRD → Approval → Attendance → Notification → Daily/Weekly/Monthly Report
+Teacher SRD
+SRD → OM Approval → Attendance/Schedule Update → Notification
+Teacher Resignation
+Resignation → Monitoring → Exit Interview → TPCAP Notification → IT Reformat Task →
+Teacher Deactivation
+Teacher Attendance
+Login/Logout → Attendance → Absence Validation → Penalty → Cut-Off Report
+New Hire
+Application → Referral → Onboarding → Requirements → Training/Tagging → Slot Eligibility
+Incident
+
+-- 26 of 29 --
+
+Incident Ticket → OM Notification → Monitoring → Resolution
+XXXIII. DEVELOPMENT PRIORITY
+PHASE 1 – Core Operations
+• Admin Time In/Out
+• IT Time In/Out
+• Teacher Login/Logout
+• Admin/IT Checklists
+• Logout Restriction
+• No Login/No Logout Alerts
+• Admin Attendance
+• Teacher Attendance
+• SRD
+• Basic Notifications
+• Incident Tickets
+PHASE 2 – Monitoring & Automation
+• Resignation System
+• Exit Interview
+• Admin/IT Task Monitoring
+• Teacher Reports
+• Penalty Monitoring
+• Seating Assignment
+• No-Logout Monitoring
+• TPCAP/IT Notifications
+PHASE 3 – Recruitment & Teacher Management
+• New Hire Dashboard
+
+-- 27 of 29 --
+
+• Requirements Checklist
+• Referral Monitoring
+• Certificate of Service
+• Slot Opening Reminders
+• Teacher Assignment
+PHASE 4 – Management Analytics
+• Daily Reports
+• Weekly Reports
+• Monthly Reports
+• Cut-Off Reports
+• Branch Reports
+• Attendance Analytics
+• Resignation Analytics
+• Admin Performance
+• IT Performance
+• Teacher Performance
+• Management Dashboard
+FINAL GOAL
+We would like the portal to become our centralized operations management system.
+The most important requirement is that information should only need to be entered once and
+should automatically sync with all related modules.
+For example:
+Attendance → Reports → Penalties → Cut-Off
+Resignation → Exit Interview → Monitoring → IT/TPCAP Notification
+SRD Approval → Schedule → Attendance
+
+-- 28 of 29 --
+
+Login → Checklist → Logout → Attendance
+New Hire → Requirements → Training → Slot Eligibility
+Incident → Notification → Monitoring → Resolution
+This should allow the management team to access accurate, real-time daily, weekly, monthly,
+and cut-off reports without manually consolidating multiple Google Forms and Sheets.
+
+-- 29 of 29 --
+

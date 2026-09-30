@@ -1,7 +1,8 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useTransition } from 'react';
-import { submitTeacherConcernAction } from '@/actions/tickets';
+import { submitTeacherConcernAction, uploadTicketEvidenceImageAction } from '@/actions/tickets';
+import { imageFileToDataUrl } from '@/lib/uploads/client';
 import { ConcernCategory, TicketUrgency, TicketStatus } from '@prisma/client';
 
 export type ConcernTicketItem = {
@@ -62,6 +63,7 @@ export default function TeacherConcernsView({
   const [urgency, setUrgency] = useState<TicketUrgency>(TicketUrgency.NORMAL);
   const [description, setDescription] = useState('');
   const [attachmentUrl, setAttachmentUrl] = useState('');
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
 
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -81,12 +83,27 @@ export default function TeacherConcernsView({
     setMessage(null);
 
     startTransition(async () => {
+      let submittedAttachmentUrl = attachmentUrl || undefined;
+      if (attachmentFile) {
+        try {
+          const upload = await uploadTicketEvidenceImageAction(await imageFileToDataUrl(attachmentFile), 'CONCERN');
+          if (upload.error || !upload.storagePath) {
+            setMessage({ type: 'error', text: upload.error || 'Failed to upload evidence image.' });
+            return;
+          }
+          submittedAttachmentUrl = upload.storagePath;
+        } catch (error: any) {
+          setMessage({ type: 'error', text: error.message || 'Failed to read evidence image.' });
+          return;
+        }
+      }
+
       const res = await submitTeacherConcernAction({
         title,
         category,
         urgency,
         description,
-        attachmentUrl: attachmentUrl || undefined,
+        attachmentUrl: submittedAttachmentUrl,
       });
 
       if (res.error) {
@@ -119,7 +136,7 @@ export default function TeacherConcernsView({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
-            💬 Teacher Concern Ticketing
+            ðŸ’¬ Teacher Concern Ticketing
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
             Submit and monitor your support requests across technical, attendance, payment, and student concerns.
@@ -164,7 +181,7 @@ export default function TeacherConcernsView({
               color: 'var(--text-muted)',
             }}
           >
-            <div style={{ fontSize: '1.75rem', marginBottom: '0.5rem' }}>🎫</div>
+            <div style={{ fontSize: '1.75rem', marginBottom: '0.5rem' }}>ðŸŽ«</div>
             <p style={{ fontSize: '1rem', fontWeight: 600 }}>No concern tickets filed yet</p>
             <p style={{ fontSize: '0.85rem', marginTop: '0.25rem' }}>
               If you experience any equipment issues, scheduling conflicts, or attendance questions, click "Submit Concern Ticket".
@@ -216,7 +233,7 @@ export default function TeacherConcernsView({
                     </span>
 
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
-                      • {CATEGORY_LABELS[ticket.category]}
+                      â€¢ {CATEGORY_LABELS[ticket.category]}
                     </span>
                   </div>
 
@@ -300,7 +317,7 @@ export default function TeacherConcernsView({
                 onClick={() => setShowModal(false)}
                 style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '1.25rem', cursor: 'pointer' }}
               >
-                ✕
+                âœ•
               </button>
             </div>
 
@@ -385,6 +402,22 @@ export default function TeacherConcernsView({
                   style={{ width: '100%', padding: '0.55rem 0.75rem' }}
                 />
               </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.35rem' }}>
+                  Upload Evidence Image (Optional)
+                </label>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => setAttachmentFile(e.target.files?.[0] || null)}
+                  className="input"
+                  style={{ width: '100%', padding: '0.55rem 0.75rem' }}
+                />
+                <p style={{ color: 'var(--text-dim)', fontSize: '0.75rem', marginTop: '0.35rem' }}>
+                  JPEG, PNG, or WebP up to 1 MB. Uploaded files are stored privately in Supabase Storage.
+                </p>
+              </div>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
@@ -434,7 +467,7 @@ export default function TeacherConcernsView({
                 onClick={() => setSelectedTicket(null)}
                 style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '1.25rem', cursor: 'pointer' }}
               >
-                ✕
+                âœ•
               </button>
             </div>
 

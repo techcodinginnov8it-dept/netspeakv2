@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import React, { useState, useTransition, useEffect } from 'react';
 import FreshnessCheckModal from './FreshnessCheckModal';
 import DailyOutputModal from '../output/DailyOutputModal';
 import { recordTeacherLogoutAction } from '@/actions/attendance';
@@ -49,6 +49,24 @@ export default function TeacherAttendanceWidget({
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const [logoutSuccess, setLogoutSuccess] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // Guard against accidental tab/window close when checked in and on duty
+  useEffect(() => {
+    const isCheckedIn = !!attendance?.timeIn && !attendance?.timeOut;
+    if (!isCheckedIn) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      // Standard browsers show native dialog asking if user wants to leave
+      e.returnValue = 'You are currently on duty. Your shift attendance is active. Are you sure you want to exit?';
+      return e.returnValue;
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [attendance?.timeIn, attendance?.timeOut]);
 
   const handleTimeInSuccess = (res: any) => {
     setAttendance({

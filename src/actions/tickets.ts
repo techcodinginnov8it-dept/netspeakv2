@@ -1,4 +1,4 @@
-'use server';
+﻿'use server';
 
 import { prisma } from '@/lib/db';
 import { requireAuth, requirePermission } from '@/lib/auth/rbac';
@@ -11,9 +11,10 @@ import {
   IncidentCategory,
   IncidentStatus,
 } from '@prisma/client';
+import { getTicketEvidenceImageUrl, parseUploadedImage, uploadTicketEvidenceImage } from '@/lib/supabase/images';
 
 // ----------------------------------------------------
-// Teacher Concerns Schemas & Actions (§20)
+// Teacher Concerns Schemas & Actions (Â§20)
 // ----------------------------------------------------
 
 const TeacherConcernSchema = z.object({
@@ -31,7 +32,7 @@ export type TicketActionResult = {
 };
 
 /**
- * Teacher submits a concern ticket (§20)
+ * Teacher submits a concern ticket (Â§20)
  */
 export async function submitTeacherConcernAction(
   data: z.infer<typeof TeacherConcernSchema>
@@ -74,7 +75,7 @@ export async function submitTeacherConcernAction(
 }
 
 /**
- * Operations Manager updates concern ticket lifecycle status & assignee (§20)
+ * Operations Manager updates concern ticket lifecycle status & assignee (Â§20)
  * Cycle: SUBMITTED -> ASSIGNED -> UNDER_REVIEW -> ACTION_TAKEN -> RESOLVED -> CLOSED
  */
 export async function updateTeacherConcernStatusAction(
@@ -111,7 +112,7 @@ export async function updateTeacherConcernStatusAction(
 }
 
 // ----------------------------------------------------
-// Incident Report Tickets Schemas & Actions (§19)
+// Incident Report Tickets Schemas & Actions (Â§19)
 // ----------------------------------------------------
 
 const IncidentReportSchema = z.object({
@@ -127,7 +128,7 @@ const IncidentReportSchema = z.object({
 });
 
 /**
- * Report a formal incident (§19)
+ * Report a formal incident (Â§19)
  */
 export async function reportIncidentAction(
   data: z.infer<typeof IncidentReportSchema>
@@ -183,7 +184,7 @@ export async function reportIncidentAction(
 }
 
 /**
- * Update incident investigation & resolution status (§19)
+ * Update incident investigation & resolution status (Â§19)
  */
 export async function updateIncidentStatusAction(
   ticketId: string,
@@ -212,5 +213,39 @@ export async function updateIncidentStatusAction(
   } catch (err: any) {
     console.error('Update incident status error:', err);
     return { error: err.message || 'Failed to update incident report.' };
+  }
+}
+
+export type TicketImageUploadResult = {
+  success?: boolean;
+  error?: string;
+  storagePath?: string;
+  previewUrl?: string | null;
+};
+
+export async function uploadTicketEvidenceImageAction(
+  dataUrl: string,
+  scope: 'CONCERN' | 'INCIDENT'
+): Promise<TicketImageUploadResult> {
+  try {
+    const permission = scope === 'CONCERN' ? 'concerns:submit' : 'incidents:report';
+    const user = await requirePermission(permission);
+    const image = parseUploadedImage(dataUrl);
+    if (!image) {
+      return { error: 'Evidence must be a valid JPEG, PNG, or WebP image no larger than 1 MB.' };
+    }
+
+    const directory = scope === 'CONCERN' ? 'concerns' : 'incidents';
+    const storagePath = `${directory}/${user.id}/${crypto.randomUUID()}.${image.extension}`;
+    await uploadTicketEvidenceImage(storagePath, image);
+
+    return {
+      success: true,
+      storagePath,
+      previewUrl: await getTicketEvidenceImageUrl(storagePath),
+    };
+  } catch (err: any) {
+    console.error('Ticket evidence upload error:', err);
+    return { error: err.message || 'Failed to upload evidence image.' };
   }
 }

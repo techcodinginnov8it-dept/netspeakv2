@@ -5,18 +5,15 @@ import { requirePermission, PERMISSIONS } from '@/lib/auth/rbac';
 import { revalidatePath } from 'next/cache';
 import { NotificationType, NotificationPriority } from '@prisma/client';
 import { checkEarlyTimeOffAutoApprovalsAction } from './requests';
+import { generateDailyStaffOperationsSummaryAction } from './staffOperations';
+
 
 /**
- * Evaluates operational state and generates idempotent alerts (§44):
- * 1. T-10 Freshness Check Reminders
- * 2. T-0 Late / Absence Detection
- * 3. No-Logout Detection
- * 4. Incomplete Staff Checklist Alerts
- * 5. Simulation Drill Countdown Reminders
+ * Internal evaluator used by both the admin UI and the protected cron endpoint.
+ * This keeps the logic in one place and allows the route to validate a secret instead
+ * of relying on a logged-in user session.
  */
-export async function runScheduledAlertsEvaluationAction() {
-  await requirePermission(PERMISSIONS.SYSTEM_JOBS);
-
+export async function evaluateScheduledAlertsInternal() {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const generatedAlerts: string[] = [];
@@ -208,6 +205,62 @@ export async function runScheduledAlertsEvaluationAction() {
     }
   }
 
+  // 6. Slot Opening Compliance & 3-Day Reminders (§XIX)
+  // Teachers must open slots 1 month in advance. Send reminder 3 days before deadline.
+  const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const targetMonthStr = nextMonthDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+  const deadlineForNextMonth = new Date(now.getFullYear(), now.getMonth(), 28); // 28th of current month
+  const tMinus3Deadline = new Date(deadlineForNextMonth.getTime() - 3 * 24 * 60 * 60 * 1000);
+
+  if (now >= tMinus3Deadline && now <= deadlineForNextMonth) {
+    for (const teacher of activeTeachers) {
+      if (!teacher.user) continue;
+
+      const compliance = await prisma.slotOpeningCompliance.findUnique({
+        where: {
+          teacherId_targetMonth: {
+            teacherId: teacher.id,
+            targetMonth: targetMonthStr,
+          },
+        },
+      });
+
+      if (!compliance || !compliance.isCompliant) {
+        const existingSlotReminder = await prisma.notification.findFirst({
+          where: {
+            userId: teacher.user.id,
+            type: NotificationType.SLOT_DEADLINE,
+            createdAt: { gte: tMinus3Deadline },
+          },
+        });
+
+        if (!existingSlotReminder) {
+          await prisma.notification.create({
+            data: {
+              userId: teacher.user.id,
+              title: `Slot Opening Deadline: ${targetMonthStr}`,
+              message: `Urgent (§XIX): You must open your required teaching slots for ${targetMonthStr} before ${deadlineForNextMonth.toLocaleDateString()}. Please update your schedule immediately.`,
+              type: NotificationType.SLOT_DEADLINE,
+              priority: NotificationPriority.URGENT,
+              link: '/dashboard/output',
+            },
+          });
+          generatedAlerts.push(`Slot opening 3-day reminder dispatched to ${teacher.displayName}`);
+        }
+      }
+    }
+  }
+
+  // 7. Daily Executive Staff Operations Summary (§XXVII)
+  // Fire after 18:00 PHT (end of standard admin shift) once per day
+  const phtHour = (now.getUTCHours() + 8) % 24; // Convert UTC to PHT UTC+8
+  if (phtHour >= 18) {
+    const summaryResult = await generateDailyStaffOperationsSummaryAction().catch(() => null);
+    if (summaryResult?.dispatched) {
+      generatedAlerts.push(`Daily executive summary dispatched to ${summaryResult.dispatched} Operations Manager(s)`);
+    }
+  }
+
   revalidatePath('/dashboard');
   revalidatePath('/dashboard/notifications');
   return {
@@ -215,4 +268,12 @@ export async function runScheduledAlertsEvaluationAction() {
     alertsDispatched: generatedAlerts.length,
     log: generatedAlerts,
   };
+}
+
+/**
+ * Admin/UI entry point enforcing RBAC before evaluation.
+ */
+export async function runScheduledAlertsEvaluationAction() {
+  await requirePermission(PERMISSIONS.SYSTEM_JOBS);
+  return evaluateScheduledAlertsInternal();
 }

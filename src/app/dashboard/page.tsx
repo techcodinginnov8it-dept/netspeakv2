@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db';
 import TeacherAttendanceWidget from '@/components/attendance/TeacherAttendanceWidget';
 import DashboardAnalyticsCharts, { DashboardChartsData } from '@/components/dashboard/DashboardAnalyticsCharts';
 import TeacherDirectoryTable from '@/components/teachers/TeacherDirectoryTable';
+import TeacherBirthdayBanner from '@/components/teachers/TeacherBirthdayBanner';
+import { getTodayBirthdaysAction } from '@/actions/incentives';
 import Link from 'next/link';
 
 export const metadata = {
@@ -324,6 +326,9 @@ export default async function DashboardPage() {
     };
   }
 
+  const todayBirthdays = await getTodayBirthdaysAction();
+  const canGrantIncentives = hasPermission(user, PERMISSIONS.TEACHERS_REVIEW);
+
   const now = new Date();
   const hour = now.getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
@@ -331,6 +336,12 @@ export default async function DashboardPage() {
 
   return (
     <div style={{ maxWidth: '1160px', margin: '0 auto', animation: 'fadeInUp 0.35s ease' }}>
+
+      {/* ── Birthday Recognition Banner (§5) ── */}
+      <TeacherBirthdayBanner
+        teachers={todayBirthdays}
+        canGrantIncentive={canGrantIncentives}
+      />
 
       {/* ── Welcome Banner ── */}
       <div style={{
@@ -452,7 +463,7 @@ export default async function DashboardPage() {
             </div>
             <Link
               href="/dashboard/teachers"
-              style={{ fontSize: '0.8rem', color: 'var(--accent-primary)', textDecoration: 'none', fontWeight: 600, whiteSpace: 'nowrap' }}
+              style={{ fontSize: '0.8rem', color: 'var(--ns-blue)', textDecoration: 'none', fontWeight: 600, whiteSpace: 'nowrap' }}
             >
               View Full Management →
             </Link>

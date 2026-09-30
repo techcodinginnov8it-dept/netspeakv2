@@ -22,6 +22,9 @@ export default async function UsersPage() {
         userRoles: {
           include: { role: true },
         },
+        staffProfile: {
+          select: { branch: true, roleType: true },
+        },
       },
     }),
     prisma.role.findMany({

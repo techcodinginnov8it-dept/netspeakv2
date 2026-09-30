@@ -13,7 +13,9 @@
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
-    "prisma:seed": "tsx prisma/seed.ts"
+    "prisma:seed": "tsx prisma/seed.ts",
+    "verify:supabase-storage": "tsx scripts/verify-supabase-storage.ts",
+    "verify:smtp": "tsx scripts/verify-smtp.ts"
   },
   "keywords": [],
   "author": "",
@@ -21,15 +23,18 @@
   "type": "module",
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "@supabase/supabase-js": "^2.117.2",
     "bcryptjs": "^3.0.3",
     "lucide-react": "^1.47.0",
     "next": "^16.3.5",
+    "nodemailer": "^10.0.10",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/node": "26.6.2",
+    "@types/nodemailer": "^8.0.2",
     "@types/react": "19.3.0",
     "prisma": "^5.22.0",
     "tsx": "^4.23.15",

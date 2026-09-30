@@ -3,13 +3,17 @@
 import { prisma } from '@/lib/db';
 import { requireAuth, requirePermission, ROLES } from '@/lib/auth/rbac';
 import { hashPassword } from '@/lib/auth/password';
+import { resolveBranchFilter } from '@/lib/branches';
+import type { AuthenticatedUser } from '@/lib/auth/types';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { sendTeacherCredentialsEmail } from '@/lib/email/smtp';
 
 // Registration schema for incoming submissions
 const TeacherRegistrationSchema = z.object({
   displayName: z.string().min(2, 'Display Name must be at least 2 characters'),
   realFullName: z.string().min(2, 'Real Complete Name must be at least 2 characters'),
+  contactEmail: z.string().email('A valid email address is required'),
   birthday: z.string().min(1, 'Birthday is required'),
   cellphone: z.string().min(7, 'Valid cellphone number is required'),
   emergencyContactName: z.string().min(2, 'Emergency contact name is required'),
@@ -23,6 +27,8 @@ const TeacherRegistrationSchema = z.object({
   assignedRestDay: z.string().default('Sunday'),
   portalUsername: z.string().optional(),
   portalPassword: z.string().optional(),
+  isReferred: z.string().optional(),
+  referringTeacherName: z.string().optional(),
 });
 
 export type TeacherRegistrationState = {
@@ -31,6 +37,18 @@ export type TeacherRegistrationState = {
   fieldErrors?: Record<string, string[]>;
   registrationId?: string;
 };
+
+async function findAccessibleTeacherProfile(
+  teacherProfileId: string,
+  user: AuthenticatedUser
+) {
+  return prisma.teacherProfile.findFirst({
+    where: {
+      id: teacherProfileId,
+      ...resolveBranchFilter(user),
+    },
+  });
+}
 
 /**
  * Public teacher registration action
@@ -46,6 +64,7 @@ export async function registerTeacherAction(
     const rawData = {
       displayName: formData.get('displayName'),
       realFullName: formData.get('realFullName'),
+      contactEmail: formData.get('contactEmail'),
       birthday: formData.get('birthday'),
       cellphone: formData.get('cellphone'),
       emergencyContactName: formData.get('emergencyContactName'),
@@ -59,6 +78,8 @@ export async function registerTeacherAction(
       assignedRestDay: formData.get('assignedRestDay') || 'Sunday',
       portalUsername: formData.get('portalUsername') || undefined,
       portalPassword: formData.get('portalPassword') || undefined,
+      isReferred: formData.get('isReferred') || 'false',
+      referringTeacherName: formData.get('referringTeacherName') || undefined,
     };
 
     const parsed = TeacherRegistrationSchema.safeParse(rawData);
@@ -72,6 +93,7 @@ export async function registerTeacherAction(
     const {
       displayName,
       realFullName,
+      contactEmail,
       birthday,
       cellphone,
       emergencyContactName,
@@ -85,6 +107,8 @@ export async function registerTeacherAction(
       assignedRestDay,
       portalUsername,
       portalPassword,
+      isReferred,
+      referringTeacherName,
     } = parsed.data;
 
     const parsedBirthday = new Date(birthday);
@@ -97,6 +121,7 @@ export async function registerTeacherAction(
     // Clean cellphone for comparison
     const cleanedCellphone = cellphone.trim();
     const cleanedFullName = realFullName.trim();
+    const cleanedContactEmail = contactEmail.trim().toLowerCase();
 
     // 1. Strict Deduplication Check: Real Complete Name + Birthday
     // To be precise, check date range for that calendar day
@@ -137,11 +162,39 @@ export async function registerTeacherAction(
       };
     }
 
+    const duplicateContactEmail = await prisma.teacherProfile.findUnique({
+      where: { contactEmail: cleanedContactEmail },
+    });
+
+    if (duplicateContactEmail) {
+      return { error: 'An applicant with this email address is already registered.' };
+    }
+
+    const wasReferred = isReferred === 'true';
+    let matchedReferringTeacherId: string | null = null;
+    let cleanReferrerName: string | null = null;
+
+    if (wasReferred && referringTeacherName?.trim()) {
+      cleanReferrerName = referringTeacherName.trim();
+      const existingReferrer = await prisma.teacherProfile.findFirst({
+        where: {
+          OR: [
+            { realFullName: { equals: cleanReferrerName, mode: 'insensitive' } },
+            { displayName: { equals: cleanReferrerName, mode: 'insensitive' } },
+          ],
+        },
+      });
+      if (existingReferrer) {
+        matchedReferringTeacherId = existingReferrer.id;
+      }
+    }
+
     // Create TeacherProfile in PENDING state
     const profile = await prisma.teacherProfile.create({
       data: {
         displayName: displayName.trim(),
         realFullName: cleanedFullName,
+        contactEmail: cleanedContactEmail,
         birthday: parsedBirthday,
         cellphone: cleanedCellphone,
         emergencyContactName: emergencyContactName.trim(),
@@ -156,6 +209,11 @@ export async function registerTeacherAction(
         portalUsername: portalUsername ? portalUsername.trim() : null,
         portalPassword: portalPassword ? portalPassword.trim() : null,
         registrationStatus: 'PENDING',
+        isReferred: wasReferred,
+        referringTeacherName: cleanReferrerName,
+        referredByTeacherId: matchedReferringTeacherId,
+        referralStatus: wasReferred ? 'PENDING' : 'DISQUALIFIED',
+        referralFeeStatus: wasReferred ? 'PENDING_ELIGIBILITY' : 'NOT_APPLICABLE',
       },
     });
 
@@ -178,9 +236,7 @@ export async function registerTeacherAction(
 export async function reviewTeacherRegistrationAction(teacherProfileId: string, notes?: string) {
   const currentUser = await requirePermission('teachers:review');
 
-  const profile = await prisma.teacherProfile.findUnique({
-    where: { id: teacherProfileId },
-  });
+  const profile = await findAccessibleTeacherProfile(teacherProfileId, currentUser);
 
   if (!profile) {
     throw new Error('Teacher registration profile not found.');
@@ -211,9 +267,7 @@ export async function reviewTeacherRegistrationAction(teacherProfileId: string, 
 export async function approveTeacherRegistrationAction(teacherProfileId: string) {
   const currentUser = await requirePermission('teachers:approve');
 
-  const profile = await prisma.teacherProfile.findUnique({
-    where: { id: teacherProfileId },
-  });
+  const profile = await findAccessibleTeacherProfile(teacherProfileId, currentUser);
 
   if (!profile) {
     throw new Error('Teacher registration profile not found.');
@@ -230,7 +284,11 @@ export async function approveTeacherRegistrationAction(teacherProfileId: string)
     .slice(0, 15);
   const randomSuffix = Math.floor(1000 + Math.random() * 9000);
   const generatedUsername = `tch_${sanitizedName || 'user'}_${randomSuffix}`;
-  const generatedEmail = `${generatedUsername}@teacher.netspeak.internal`;
+  if (!profile.contactEmail) {
+    throw new Error('This applicant has no email address. Add a delivery email before approval.');
+  }
+
+  const generatedEmail = profile.contactEmail;
   
   // Temporary initial password (e.g. Netspeak + 4 random digits + !)
   const tempPassword = `Netspeak${Math.floor(1000 + Math.random() * 9000)}!`;
@@ -243,6 +301,11 @@ export async function approveTeacherRegistrationAction(teacherProfileId: string)
 
   if (!teacherRole) {
     throw new Error('TEACHER role definition not found in system.');
+  }
+
+  const existingUserWithEmail = await prisma.user.findUnique({ where: { email: generatedEmail } });
+  if (existingUserWithEmail) {
+    throw new Error('An active portal account already uses this applicant email address.');
   }
 
   // Create User and link to Profile in transaction
@@ -282,6 +345,21 @@ export async function approveTeacherRegistrationAction(teacherProfileId: string)
   revalidatePath('/dashboard/teachers');
   revalidatePath(`/dashboard/teachers/${teacherProfileId}`);
 
+  let emailDelivered = false;
+  let emailError: string | undefined;
+  try {
+    await sendTeacherCredentialsEmail({
+      recipient: generatedEmail,
+      fullName: profile.realFullName,
+      username: generatedUsername,
+      temporaryPassword: tempPassword,
+    });
+    emailDelivered = true;
+  } catch (error: any) {
+    console.error('Teacher credential email delivery failed:', error.message);
+    emailError = 'The account was activated, but the credential email could not be sent. Verify SMTP configuration before issuing the displayed temporary credentials.';
+  }
+
   return {
     success: true,
     credentials: {
@@ -290,6 +368,7 @@ export async function approveTeacherRegistrationAction(teacherProfileId: string)
       email: generatedEmail,
       userId: user.id,
     },
+    emailDelivery: { delivered: emailDelivered, error: emailError },
   };
 }
 
@@ -303,9 +382,7 @@ export async function rejectTeacherRegistrationAction(teacherProfileId: string, 
     throw new Error('A valid reason is required to reject a registration.');
   }
 
-  const profile = await prisma.teacherProfile.findUnique({
-    where: { id: teacherProfileId },
-  });
+  const profile = await findAccessibleTeacherProfile(teacherProfileId, currentUser);
 
   if (!profile) {
     throw new Error('Teacher registration profile not found.');
@@ -340,7 +417,12 @@ export async function updateTeacherOperationalAction(
     portalPassword?: string;
   }
 ) {
-  await requirePermission('teachers:update');
+  const currentUser = await requirePermission('teachers:update');
+
+  const profile = await findAccessibleTeacherProfile(teacherProfileId, currentUser);
+  if (!profile) {
+    throw new Error('Teacher profile not found.');
+  }
 
   await prisma.teacherProfile.update({
     where: { id: teacherProfileId },

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import TeacherProfileDetail from '@/components/teachers/TeacherProfileDetail';
 import { notFound } from 'next/navigation';
 import { getShiftSchedulesAction } from '@/actions/shifts';
+import { resolveBranchFilter } from '@/lib/branches';
 
 export const metadata = {
   title: 'Teacher Profile | Netspeak Portal',
@@ -13,8 +14,11 @@ export default async function TeacherDetailPage({ params }: { params: Promise<{ 
   const user = await requirePermission(PERMISSIONS.TEACHERS_READ);
   const resolvedParams = await params;
 
-  const teacher = await prisma.teacherProfile.findUnique({
-    where: { id: resolvedParams.id },
+  const teacher = await prisma.teacherProfile.findFirst({
+    where: {
+      id: resolvedParams.id,
+      ...resolveBranchFilter(user),
+    },
     include: {
       user: {
         select: {

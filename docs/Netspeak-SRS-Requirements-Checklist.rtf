@@ -1,0 +1,55 @@
+{\rtf1\ansi\deff0
+{\fonttbl{\f0 Aptos;}{\f1 Aptos Display;}}
+{\colortbl;\red31\green78\blue121;\red79\green79\blue79;}
+\paperw12240\paperh15840\margl1440\margr1440\margt1260\margb1260
+\pard\qc\sa160\f1\fs36\b\cf1 Netspeak Portal v2.0\par
+\pard\qc\sa240\f1\fs26\b0 System Requirements Compliance Checklist\par
+\pard\qc\sa360\f0\fs18\cf2 Prepared: September 25, 2026 | Static source review\par
+\pard\sa120\f0\fs21\b\cf0 Legend: \u9745? Implemented / represented\tab \u9744? Partial or requires live verification\tab \u9746? No clear implementation evidence\par
+
+\pard\sa140\f1\fs26\b\cf1 Core System and Access\par
+\pard\sa80\f0\fs21\b0 \u9745?\tab Next.js portal, Prisma database layer, and centralized operational structure\par
+\pard\sa80\f0\fs21 \u9745?\tab Account management, roles, and user administration\par
+\pard\sa80\f0\fs21 \u9745?\tab Teacher registration, profiles, directory, and onboarding views\par
+\pard\sa80\f0\fs21 \u9744?\tab Duplicate prevention by complete name plus birthday or cellphone number\par
+\pard\sa160\f0\fs21 \u9746?\tab SMTP email verification, credential delivery, password reset, and email notifications\par
+
+\pard\sa140\f1\fs26\b\cf1 Attendance and Shift Management\par
+\pard\sa80\f0\fs21\b0 \u9744?\tab Freshness Check selfie/photo capture and official arrival timestamp\par
+\pard\sa80\f0\fs21 \u9744?\tab T-30, T-10, and T-0 shift rules with late/absent alerts\par
+\pard\sa80\f0\fs21 \u9744?\tab Teacher logout restriction during active shifts and 15-minute release window\par
+\pard\sa80\f0\fs21 \u9745?\tab Teacher, Admin, and IT attendance screens and operational desks\par
+\pard\sa80\f0\fs21 \u9744?\tab Admin/IT checklist-gated logout and no-login/no-logout alerts\par
+\pard\sa160\f0\fs21 \u9746?\tab Windows/PC shutdown sequence after successful logout\par
+
+\pard\sa140\f1\fs26\b\cf1 Daily Output and Requests\par
+\pard\sa80\f0\fs21\b0 \u9745?\tab Daily output reporting module\par
+\pard\sa80\f0\fs21 \u9744?\tab Mandatory announcement acknowledgement, next-login reminder, and 48-hour correction policy\par
+\pard\sa80\f0\fs21 \u9745?\tab Switch Rest Day and Early Time-Off request/approval interfaces\par
+\pard\sa80\f0\fs21 \u9744?\tab SRD schedule/attendance synchronization and ETO 30-minute auto-approval\par
+\pard\sa80\f0\fs21 \u9746?\tab Cash-loan request, deduction schedule, and due-date reminders\par
+\pard\sa160\f0\fs21 \u9744?\tab Request-status notifications including reviewer notes\par
+
+\pard\sa140\f1\fs26\b\cf1 Teacher Operations\par
+\pard\sa80\f0\fs21\b0 \u9745?\tab Teacher concerns, ticketing, and management-facing concern views\par
+\pard\sa80\f0\fs21 \u9745?\tab Teacher resignation submission and resignation monitoring views\par
+\pard\sa80\f0\fs21 \u9746?\tab Exit-interview slot opening, booking, confirmation, and reminders\par
+\pard\sa80\f0\fs21 \u9746?\tab Social-media monitoring synchronized to active teacher sessions\par
+\pard\sa80\f0\fs21 \u9745?\tab Seating arrangement and workstation management\par
+\pard\sa80\f0\fs21 \u9746?\tab Resignation/AWOL automation for reformatting, assignment release, and TPCAP updates\par
+\pard\sa80\f0\fs21 \u9746?\tab Slot-opening compliance, deadlines, and reminders\par
+\pard\sa80\f0\fs21 \u9746?\tab Certificate of Service generator\par
+\pard\sa80\f0\fs21 \u9746?\tab Referral monitoring and referral-fee status\par
+\pard\sa160\f0\fs21 \u9746?\tab Configurable penalty monitoring connected to cut-off reporting\par
+
+\pard\sa140\f1\fs26\b\cf1 Administration, IT, and Reporting\par
+\pard\sa80\f0\fs21\b0 \u9745?\tab Shifts, staff operations, checklists, ticketing, and simulation management surfaces\par
+\pard\sa80\f0\fs21 \u9745?\tab New-hire dashboard and onboarding requirements UI\par
+\pard\sa80\f0\fs21 \u9744?\tab Required onboarding statuses, three-day completion rule, and slot-opening eligibility\par
+\pard\sa80\f0\fs21 \u9745?\tab Management dashboards, reports, cut-off reports, analytics, notifications UI, and audit logs\par
+\pard\sa80\f0\fs21 \u9744?\tab Centralized notification events, recipients, delivery channels, and scheduled reminders\par
+\pard\sa160\f0\fs21 \u9746?\tab Supabase Storage attachments and production scheduler/cron execution\par
+
+\pard\sa140\f1\fs26\b\cf1 Assessment Result\par
+\pard\sa120\f0\fs21\b0 The project has broad functional coverage but does not yet demonstrate full compliance with the SRS. Prioritize attendance/approval synchronization, SMTP and file storage integration, scheduled automation, specialist workflows, and a live role-based acceptance test pass.\par
+}

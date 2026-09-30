@@ -71,4 +71,7 @@ export const PERMISSIONS = {
   REPORTS_VIEW: 'reports:view',
   REPORTS_EXPORT: 'reports:export',
   AUDIT_VIEW: 'audit:view',
+  REFERRALS_MANAGE: 'referrals:manage',
+  SLOTS_MANAGE: 'slots:manage',
+  INCENTIVES_MANAGE: 'incentives:manage',
 } as const;

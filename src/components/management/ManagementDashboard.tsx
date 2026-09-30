@@ -57,9 +57,24 @@ export type ManagementDashboardData = {
     availableWorkstations: number;
     maintenanceWorkstations: number;
   };
+  // Low-Booking Intelligence (§5, §XXXI)
+  lowBookingTeachers?: {
+    teacherId: string;
+    realFullName: string;
+    displayName: string;
+    branch: string | null;
+    projectType: string;
+    department: string;
+    consecutiveLowDays: number;
+    averageBookingRate: number;
+    lastBookedSlots: number;
+    lastOpenSlots: number;
+    severity: 'DAILY' | 'URGENT' | 'CRITICAL';
+    recommendedAction: string;
+  }[];
 };
 
-type PanelTab = 'OVERVIEW' | 'TEACHERS' | 'OPERATIONS' | 'RESIGNATIONS' | 'ONBOARDING' | 'CONCERNS';
+type PanelTab = 'OVERVIEW' | 'TEACHERS' | 'OPERATIONS' | 'RESIGNATIONS' | 'ONBOARDING' | 'CONCERNS' | 'LOW_BOOKING';
 
 export default function ManagementDashboard({ data }: { data: ManagementDashboardData }) {
   const [activeTab, setActiveTab] = useState<PanelTab>('OVERVIEW');
@@ -88,16 +103,16 @@ export default function ManagementDashboard({ data }: { data: ManagementDashboar
             </h1>
             <span
               style={{
-                background: 'rgba(59, 130, 246, 0.15)',
-                color: '#93c5fd',
+                background: 'rgba(0, 82, 204, 0.12)',
+                color: 'var(--ns-blue)',
                 fontSize: '0.75rem',
                 fontWeight: 700,
                 padding: '0.25rem 0.6rem',
                 borderRadius: '999px',
-                border: '1px solid rgba(59, 130, 246, 0.3)',
+                border: '1px solid rgba(0, 82, 204, 0.24)',
               }}
             >
-              MANAGEMENT / OM
+              Management • Operations
             </span>
           </div>
           <p style={{ color: 'var(--text-dim)', margin: '0.35rem 0 0', fontSize: '0.9rem' }}>
@@ -163,12 +178,13 @@ export default function ManagementDashboard({ data }: { data: ManagementDashboar
           { id: 'RESIGNATIONS', label: '🚪 Resignations & Attrition' },
           { id: 'ONBOARDING', label: '🎓 New Hire Pipeline' },
           { id: 'CONCERNS', label: '⚠️ Concerns & Tickets' },
+          { id: 'LOW_BOOKING', label: '📉 Low-Booking Intelligence (§5)' },
         ].map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as PanelTab)}
             style={{
-              background: activeTab === tab.id ? 'var(--accent-primary)' : 'transparent',
+              background: activeTab === tab.id ? 'var(--ns-blue)' : 'transparent',
               color: activeTab === tab.id ? '#fff' : 'var(--text-dim)',
               border: 'none',
               borderRadius: 'var(--radius-sm)',
@@ -242,7 +258,7 @@ export default function ManagementDashboard({ data }: { data: ManagementDashboar
                         style={{
                           width: `${(b.count / (teacherStats.totalTeachers || 1)) * 100}%`,
                           height: '100%',
-                          background: 'var(--accent-primary)',
+                          background: 'var(--ns-blue)',
                         }}
                       />
                     </div>
@@ -349,7 +365,7 @@ export default function ManagementDashboard({ data }: { data: ManagementDashboar
                 <span style={{ color: 'var(--ns-violet)', fontWeight: 700 }}>{operationsToday.totalTrialDoneToday}</span>
               </div>
               <div style={{ textAlign: 'right', marginTop: '0.5rem' }}>
-                <Link href="/dashboard/output" style={{ color: 'var(--accent-primary)', fontSize: '0.85rem', textDecoration: 'none' }}>
+                <Link href="/dashboard/output" style={{ color: 'var(--ns-blue)', fontSize: '0.85rem', textDecoration: 'none' }}>
                   View Full SRD Logs &rarr;
                 </Link>
               </div>
@@ -382,7 +398,7 @@ export default function ManagementDashboard({ data }: { data: ManagementDashboar
               </div>
             </div>
             <div style={{ marginTop: '1rem', textAlign: 'right' }}>
-              <Link href="/dashboard/resignations" style={{ color: 'var(--accent-primary)', fontSize: '0.85rem', textDecoration: 'none' }}>
+              <Link href="/dashboard/resignations" style={{ color: 'var(--ns-blue)', fontSize: '0.85rem', textDecoration: 'none' }}>
                 Manage Resignations &rarr;
               </Link>
             </div>
@@ -434,7 +450,7 @@ export default function ManagementDashboard({ data }: { data: ManagementDashboar
               </div>
             </div>
             <div style={{ marginTop: '1rem', textAlign: 'right' }}>
-              <Link href="/dashboard/onboarding/manage" style={{ color: 'var(--accent-primary)', fontSize: '0.85rem', textDecoration: 'none' }}>
+              <Link href="/dashboard/onboarding/manage" style={{ color: 'var(--ns-blue)', fontSize: '0.85rem', textDecoration: 'none' }}>
                 Open New Hire Desk &rarr;
               </Link>
             </div>
@@ -481,7 +497,7 @@ export default function ManagementDashboard({ data }: { data: ManagementDashboar
               </div>
             </div>
             <div style={{ marginTop: '1.25rem', textAlign: 'right' }}>
-              <Link href="/dashboard/concerns" style={{ color: 'var(--accent-primary)', fontSize: '0.85rem', textDecoration: 'none' }}>
+              <Link href="/dashboard/concerns" style={{ color: 'var(--ns-blue)', fontSize: '0.85rem', textDecoration: 'none' }}>
                 Go to Concerns Ticketing Desk &rarr;
               </Link>
             </div>
@@ -499,6 +515,111 @@ export default function ManagementDashboard({ data }: { data: ManagementDashboar
                     <span style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: '0.85rem' }}>{c.count}</span>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Panel 7: Low-Booking Intelligence (§5, §XXXI) */}
+      {activeTab === 'LOW_BOOKING' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span>📉</span> Low-Booking Consecutive Intelligence Table (§5, §XXXI)
+                </h3>
+                <p style={{ margin: '0.35rem 0 0', fontSize: '0.85rem', color: 'var(--text-dim)' }}>
+                  Automated streak detection monitoring low booking rates across 1-day, 3-day (Urgent), and 5-day (Critical) thresholds.
+                </p>
+              </div>
+            </div>
+
+            {(!data.lowBookingTeachers || data.lowBookingTeachers.length === 0) ? (
+              <div style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-dim)', background: 'var(--surface-variant)', borderRadius: 'var(--radius-md)' }}>
+                🎉 Excellent booking health! No teachers currently flagged for consecutive under-booking.
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--surface-variant)', borderBottom: '1px solid var(--border-color)' }}>
+                      <th style={{ padding: '0.85rem 1rem' }}>Teacher</th>
+                      <th style={{ padding: '0.85rem 1rem' }}>Branch</th>
+                      <th style={{ padding: '0.85rem 1rem' }}>Project / Dept</th>
+                      <th style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>Consecutive Low Days</th>
+                      <th style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>Last Output (Booked/Open)</th>
+                      <th style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>Avg Booking %</th>
+                      <th style={{ padding: '0.85rem 1rem' }}>Severity Tier</th>
+                      <th style={{ padding: '0.85rem 1rem' }}>Mandated Action (§5)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.lowBookingTeachers.map((t) => {
+                      const badgeBg =
+                        t.severity === 'CRITICAL'
+                          ? 'rgba(220, 38, 38, 0.12)'
+                          : t.severity === 'URGENT'
+                          ? 'rgba(245, 158, 11, 0.12)'
+                          : 'rgba(0, 82, 204, 0.08)';
+                      const badgeColor =
+                        t.severity === 'CRITICAL'
+                          ? '#DC2626'
+                          : t.severity === 'URGENT'
+                          ? '#B45309'
+                          : 'var(--ns-blue)';
+                      const badgeBorder =
+                        t.severity === 'CRITICAL'
+                          ? 'rgba(220, 38, 38, 0.35)'
+                          : t.severity === 'URGENT'
+                          ? 'rgba(245, 158, 11, 0.35)'
+                          : 'rgba(0, 82, 204, 0.25)';
+
+                      return (
+                        <tr key={t.teacherId} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                          <td style={{ padding: '0.85rem 1rem' }}>
+                            <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{t.realFullName}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>&quot;{t.displayName}&quot;</div>
+                          </td>
+                          <td style={{ padding: '0.85rem 1rem' }}>
+                            <span className="badge badge-secondary">{t.branch || 'Atimonan'}</span>
+                          </td>
+                          <td style={{ padding: '0.85rem 1rem' }}>
+                            {t.projectType} · {t.department}
+                          </td>
+                          <td style={{ padding: '0.85rem 1rem', textAlign: 'center', fontWeight: 800, fontSize: '1rem', color: badgeColor }}>
+                            {t.consecutiveLowDays} Day{t.consecutiveLowDays > 1 ? 's' : ''}
+                          </td>
+                          <td style={{ padding: '0.85rem 1rem', textAlign: 'center', fontWeight: 600 }}>
+                            {t.lastBookedSlots} / {t.lastOpenSlots}
+                          </td>
+                          <td style={{ padding: '0.85rem 1rem', textAlign: 'center', fontWeight: 700 }}>
+                            {t.averageBookingRate}%
+                          </td>
+                          <td style={{ padding: '0.85rem 1rem' }}>
+                            <span
+                              style={{
+                                padding: '0.25rem 0.6rem',
+                                borderRadius: '999px',
+                                fontSize: '0.75rem',
+                                fontWeight: 800,
+                                background: badgeBg,
+                                color: badgeColor,
+                                border: `1px solid ${badgeBorder}`,
+                              }}
+                            >
+                              {t.severity}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.85rem 1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                            {t.recommendedAction}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>

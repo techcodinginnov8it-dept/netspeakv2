@@ -5,6 +5,21 @@ import { requireAuth, requirePermission, ROLES, hasRole } from '@/lib/auth/rbac'
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { getManilaToday, getManilaShiftBoundaries } from '@/lib/timezone';
+import { getFreshnessCheckPhotoUrl, removeFreshnessCheckPhoto, uploadFreshnessCheckPhoto } from '@/lib/supabase/storage';
+
+const MAX_FRESHNESS_CHECK_PHOTO_BYTES = 1024 * 1024;
+const JPEG_DATA_URL_PREFIX = 'data:image/jpeg;base64,';
+
+function parseFreshnessCheckPhoto(photoBase64: string): Buffer | null {
+  if (!photoBase64.startsWith(JPEG_DATA_URL_PREFIX)) return null;
+  const photo = Buffer.from(photoBase64.slice(JPEG_DATA_URL_PREFIX.length), 'base64');
+  if (
+    photo.length === 0 || photo.length > MAX_FRESHNESS_CHECK_PHOTO_BYTES ||
+    photo[0] !== 0xff || photo[1] !== 0xd8 ||
+    photo[photo.length - 2] !== 0xff || photo[photo.length - 1] !== 0xd9
+  ) return null;
+  return photo;
+}
 
 function normalizeDate(date: Date = new Date()): Date {
   return getManilaToday();
@@ -31,6 +46,7 @@ export type TimeInResult = {
  * - Creates / updates TeacherAttendance record
  */
 export async function recordFreshnessCheckAction(photoBase64: string): Promise<TimeInResult> {
+  let uploadedPhotoPath: string | null = null;
   try {
     const user = await requireAuth();
 
@@ -44,8 +60,9 @@ export async function recordFreshnessCheckAction(photoBase64: string): Promise<T
       return { error: 'No teacher profile linked to your user account.' };
     }
 
-    if (!photoBase64 || photoBase64.trim().length < 50) {
-      return { error: 'A valid Freshness Check camera capture is required for time-in.' };
+    const photo = parseFreshnessCheckPhoto(photoBase64);
+    if (!photo) {
+      return { error: 'Provide a valid JPEG Freshness Check photo no larger than 1 MB.' };
     }
 
     const now = new Date();
@@ -82,6 +99,9 @@ export async function recordFreshnessCheckAction(photoBase64: string): Promise<T
       };
     }
 
+    uploadedPhotoPath = `${user.id}/${today.toISOString().slice(0, 10)}/${crypto.randomUUID()}.jpg`;
+    await uploadFreshnessCheckPhoto(uploadedPhotoPath, photo);
+
     // Rule: T-0 Evaluation (Late vs On Time)
     let isLate = false;
     let lateMinutes = 0;
@@ -105,7 +125,7 @@ export async function recordFreshnessCheckAction(photoBase64: string): Promise<T
         scheduledStartTime: scheduledStart,
         scheduledEndTime: scheduledEnd,
         timeIn: now,
-        timeInPhoto: photoBase64,
+        timeInPhoto: uploadedPhotoPath,
         status,
         isLate,
         lateMinutes,
@@ -117,7 +137,7 @@ export async function recordFreshnessCheckAction(photoBase64: string): Promise<T
         scheduledStartTime: scheduledStart,
         scheduledEndTime: scheduledEnd,
         timeIn: now,
-        timeInPhoto: photoBase64,
+        timeInPhoto: uploadedPhotoPath,
         status,
         isLate,
         lateMinutes,
@@ -135,6 +155,7 @@ export async function recordFreshnessCheckAction(photoBase64: string): Promise<T
       attendanceId: attendance.id,
     };
   } catch (err: any) {
+    if (uploadedPhotoPath) await removeFreshnessCheckPhoto(uploadedPhotoPath);
     console.error('Freshness check error:', err);
     return { error: err.message || 'Failed to record freshness check.' };
   }
@@ -293,7 +314,7 @@ export async function getAttendanceRosterAction(targetDateStr?: string) {
     orderBy: { displayName: 'asc' },
   });
 
-  return teachers.map((t) => {
+  return Promise.all(teachers.map(async (t) => {
     const attendance = t.attendances[0] || null;
     return {
       teacherId: t.id,
@@ -303,7 +324,10 @@ export async function getAttendanceRosterAction(targetDateStr?: string) {
       department: t.department,
       projectType: t.projectType,
       shiftName: t.shiftSchedule?.name || 'Standard (08:00 - 17:00)',
-      attendance,
+      attendance: attendance ? {
+        ...attendance,
+        timeInPhoto: attendance.timeInPhoto ? await getFreshnessCheckPhotoUrl(attendance.timeInPhoto) : null,
+      } : null,
     };
-  });
+  }));
 }

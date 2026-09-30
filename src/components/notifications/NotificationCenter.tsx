@@ -186,7 +186,7 @@ export default function NotificationCenter({ notifications, canBroadcast, canRun
             fontSize: '0.85rem',
           }}
         >
-          <div style={{ fontWeight: 700, color: '#93c5fd', marginBottom: '0.5rem' }}>
+          <div style={{ fontWeight: 700, color: 'var(--ns-blue-light)', marginBottom: '0.5rem' }}>
             ⚡ Scheduled Alerts Evaluator Execution Results:
           </div>
           {jobLog.length === 0 ? (

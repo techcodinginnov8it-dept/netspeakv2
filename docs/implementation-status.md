@@ -132,3 +132,9 @@ Milestone 16: Comprehensive UI/UX Color Contrast & Legibility Overhaul
   - Dashboard overview pages: `/dashboard/teachers`, `/dashboard/output`, `/dashboard/attendance` KPI cards
 - [x] Verified zero remaining unreadable pastel color codes across the codebase — *Completed*
 
+Recent Implementation Updates (September 2026)
+- [x] Requirements audit and gap rebalance completed; remaining high-priority items were re-ranked to reflect real deployment needs — *Completed*
+- [x] Protected scheduler endpoint added with `CRON_SECRET` enforcement via `/api/cron/evaluate-alerts` — *Completed*
+- [x] SMTP email transport hardened to accept Gmail-style hosts and regularize env validation for teacher credential delivery — *Completed*
+- [x] Cash loan lifecycle completed: Prisma model, server actions, form UI, KPI tracking, manager approval queue, and teacher request history — *Completed*
+- [x] Production verification confirmed with `npm run build` after the combined updates; all routes compiled successfully — *Completed*

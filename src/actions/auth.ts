@@ -76,6 +76,38 @@ export async function loginAction(
  * Server Action for User Logout
  */
 export async function logoutAction(): Promise<void> {
+  // If teacher is currently checked in without checking out, reject logout attempt
+  const { getCurrentUser } = await import('@/lib/auth/session');
+  const { ROLES } = await import('@/lib/auth/types');
+  const user = await getCurrentUser();
+
+  if (user && user.roles.includes(ROLES.TEACHER)) {
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+
+    const teacher = await prisma.teacherProfile.findFirst({
+      where: { userId: user.id },
+      select: { id: true },
+    });
+
+    if (teacher) {
+      const activeAttendance = await prisma.teacherAttendance.findUnique({
+        where: {
+          teacherId_date: {
+            teacherId: teacher.id,
+            date: today,
+          },
+        },
+        select: { timeIn: true, timeOut: true },
+      });
+
+      if (activeAttendance?.timeIn && !activeAttendance.timeOut) {
+        // Teacher is still on active duty; redirect back to dashboard
+        redirect('/dashboard');
+      }
+    }
+  }
+
   await invalidateSession();
   redirect('/login');
 }

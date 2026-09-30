@@ -1,5 +1,6 @@
 import { requireAuth } from '@/lib/auth/rbac';
 import { hasPermission, PERMISSIONS, ROLES } from '@/lib/auth/rbac';
+import { prisma } from '@/lib/db';
 import AppHeader from '@/components/layout/AppHeader';
 import AppSidebar, { type SidebarPermissions, type SidebarUser } from '@/components/layout/AppSidebar';
 import { getActiveBranches } from '@/lib/branches';
@@ -13,6 +14,34 @@ export default async function DashboardLayout({
   const branches = await getActiveBranches();
 
   const isTeacher = user.roles.includes(ROLES.TEACHER);
+
+  // Check if teacher is currently timed in without time out (active on duty)
+  let isDutyLocked = false;
+  if (isTeacher) {
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+
+    const teacherProfile = await prisma.teacherProfile.findFirst({
+      where: { userId: user.id },
+      select: { id: true },
+    });
+
+    if (teacherProfile) {
+      const activeAttendance = await prisma.teacherAttendance.findUnique({
+        where: {
+          teacherId_date: {
+            teacherId: teacherProfile.id,
+            date: today,
+          },
+        },
+        select: { timeIn: true, timeOut: true },
+      });
+
+      if (activeAttendance?.timeIn && !activeAttendance.timeOut) {
+        isDutyLocked = true;
+      }
+    }
+  }
 
   /* Compute all sidebar permissions server-side — passed as plain props */
   const perms: SidebarPermissions = {
@@ -50,7 +79,7 @@ export default async function DashboardLayout({
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-page)' }}>
-      <AppHeader user={user} branches={branches} />
+      <AppHeader user={user} branches={branches} isDutyLocked={isDutyLocked} />
       <div style={{ display: 'flex', flex: 1 }}>
         <AppSidebar user={sidebarUser} perms={perms} />
         <main style={{

@@ -112,7 +112,10 @@
   --color-primary-hover: #003A9E;
   --primary:             #0052CC;
   --accent:              #0052CC;
-  
+  --accent-primary:      var(--ns-blue);
+  --accent-primary-strong: var(--ns-blue-dark);
+  --accent-primary-soft: rgba(0, 82, 204, 0.12);
+
   --color-success:    #0D9488;
   --color-success-bg: rgba(13, 148, 136, 0.08);
   --success:          #059669;

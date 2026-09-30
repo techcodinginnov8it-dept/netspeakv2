@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 import { requireAuth, requirePermission, PERMISSIONS } from '@/lib/auth/rbac';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { StaffRoleType, StaffAttendanceStatus } from '@prisma/client';
+import { StaffRoleType, StaffAttendanceStatus, NotificationType, NotificationPriority } from '@prisma/client';
 import { ADMIN_DAILY_CHECKLIST, IT_DAILY_CHECKLIST } from '@/lib/operations/checklists';
 
 /**
@@ -243,3 +243,114 @@ export async function reconcileStaffAttendanceAction(
   revalidatePath('/dashboard/operations/attendance');
   return { success: true };
 }
+
+/**
+ * Generates and dispatches Daily Executive Staff Operations Summary to Operations Managers (§XXVII)
+ * Tallies Admin and IT attendance/checklist compliance for the current day.
+ * Intended to run at end-of-day via the scheduled cron evaluator.
+ */
+export async function generateDailyStaffOperationsSummaryAction() {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const allAttendances = await prisma.staffAttendance.findMany({
+    where: { date: today },
+    include: {
+      staffProfile: {
+        include: { user: true },
+      },
+    },
+  });
+
+  type GroupSummary = {
+    present: number;
+    late: number;
+    earlyOut: number;
+    absent: number;
+    noLogin: number;
+    noLogout: number;
+    checklistComplete: number;
+    checklistIncomplete: number;
+    total: number;
+  };
+
+  const adminSummary: GroupSummary = { present: 0, late: 0, earlyOut: 0, absent: 0, noLogin: 0, noLogout: 0, checklistComplete: 0, checklistIncomplete: 0, total: 0 };
+  const itSummary: GroupSummary = { present: 0, late: 0, earlyOut: 0, absent: 0, noLogin: 0, noLogout: 0, checklistComplete: 0, checklistIncomplete: 0, total: 0 };
+
+  for (const att of allAttendances) {
+    const target = att.staffProfile.roleType === StaffRoleType.IT ? itSummary : adminSummary;
+    target.total++;
+    if (att.status === 'PRESENT') target.present++;
+    else if (att.status === 'LATE') target.late++;
+    else if (att.status === 'EARLY_OUT') target.earlyOut++;
+    else if (att.status === 'ABSENT') target.absent++;
+    if (!att.timeIn) target.noLogin++;
+    if (att.timeIn && !att.timeOut) target.noLogout++;
+    if (att.isChecklistComplete) target.checklistComplete++;
+    else target.checklistIncomplete++;
+  }
+
+  const dateLabel = today.toLocaleDateString('en-PH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  const summaryMessage = [
+    `📋 Daily Staff Operations Summary — ${dateLabel}`,
+    ``,
+    `🏢 ADMIN STAFF:`,
+    `  ✅ Present: ${adminSummary.present}  ⏰ Late: ${adminSummary.late}  🚪 Early Out: ${adminSummary.earlyOut}`,
+    `  ❌ Absent: ${adminSummary.absent}  🔴 No Login: ${adminSummary.noLogin}  🔴 No Logout: ${adminSummary.noLogout}`,
+    `  📋 Checklist Done: ${adminSummary.checklistComplete}  ⚠️ Incomplete: ${adminSummary.checklistIncomplete}`,
+    ``,
+    `💻 IT STAFF:`,
+    `  ✅ Present: ${itSummary.present}  ⏰ Late: ${itSummary.late}  🚪 Early Out: ${itSummary.earlyOut}`,
+    `  ❌ Absent: ${itSummary.absent}  🔴 No Login: ${itSummary.noLogin}  🔴 No Logout: ${itSummary.noLogout}`,
+    `  📋 Checklist Done: ${itSummary.checklistComplete}  ⚠️ Incomplete: ${itSummary.checklistIncomplete}`,
+  ].join('\n');
+
+  // Dispatch to all OPERATIONS_MANAGER role users
+  const managers = await prisma.user.findMany({
+    where: {
+      isActive: true,
+      userRoles: {
+        some: {
+          role: { name: { in: ['OPERATIONS_MANAGER', 'SYSTEM_ADMINISTRATOR'] } },
+        },
+      },
+    },
+    select: { id: true },
+  });
+
+  let dispatched = 0;
+  for (const manager of managers) {
+    // Idempotency: only one daily summary per manager per day
+    const existing = await prisma.notification.findFirst({
+      where: {
+        userId: manager.id,
+        type: NotificationType.SYSTEM_NOTICE,
+        title: { contains: 'Daily Staff Operations Summary' },
+        createdAt: { gte: today },
+      },
+    });
+    if (!existing) {
+      await prisma.notification.create({
+        data: {
+          userId: manager.id,
+          title: `Daily Staff Operations Summary — ${today.toLocaleDateString()}`,
+          message: summaryMessage,
+          type: NotificationType.SYSTEM_NOTICE,
+          priority: NotificationPriority.NORMAL,
+          link: '/dashboard/operations/attendance',
+        },
+      });
+      dispatched++;
+    }
+  }
+
+  revalidatePath('/dashboard/notifications');
+  return {
+    success: true,
+    dispatched,
+    adminSummary,
+    itSummary,
+  };
+}
+

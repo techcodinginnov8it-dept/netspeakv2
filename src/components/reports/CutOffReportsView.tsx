@@ -8,6 +8,7 @@ import {
   getCutOffReportAction,
   getStaffOperationsReportAction,
 } from '@/actions/reports';
+import LessonFeeSyncDesk from './LessonFeeSyncDesk';
 
 interface Props {
   initialReportData: CutOffReportData | null;
@@ -22,7 +23,7 @@ export default function CutOffReportsView({
   defaultStartDate,
   defaultEndDate,
 }: Props) {
-  const [activeTab, setActiveTab] = useState<'TEACHER_CUTOFF' | 'STAFF_OPERATIONS'>('TEACHER_CUTOFF');
+  const [activeTab, setActiveTab] = useState<'TEACHER_CUTOFF' | 'STAFF_OPERATIONS' | 'LESSON_SYNC'>('TEACHER_CUTOFF');
   const [startDate, setStartDate] = useState(defaultStartDate);
   const [endDate, setEndDate] = useState(defaultEndDate);
   const [projectType, setProjectType] = useState('ALL');
@@ -125,7 +126,8 @@ export default function CutOffReportsView({
         'Total Cancellations',
         'Absence Penalty (PHP)',
         'No Logout Penalty (PHP)',
-        'Net Estimated Penalty (PHP)',
+        'Loan Deduction (PHP)',
+        'Net Estimated Penalty & Deductions (PHP)',
       ];
 
       const rows = reportData.rows.map((r) => [
@@ -147,6 +149,7 @@ export default function CutOffReportsView({
         r.totalCancellations,
         r.unexcusedAbsencePenaltyPhp,
         r.noLogoutPenaltyPhp,
+        r.loanDeductionPhp,
         r.netEstimatedPenaltyPhp,
       ]);
 
@@ -446,7 +449,7 @@ export default function CutOffReportsView({
             <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.25rem' }}>
               {reportData.summary.totalTeachers}
             </div>
-            <div style={{ fontSize: '0.75rem', color: '#93c5fd', marginTop: '0.25rem' }}>Approved active teachers</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--ns-blue-light)', marginTop: '0.25rem' }}>Approved active teachers</div>
           </div>
 
           <div
@@ -554,6 +557,21 @@ export default function CutOffReportsView({
           >
             ⚡ Staff Operations &amp; Checklists ({filteredStaff.length})
           </button>
+          <button
+            onClick={() => setActiveTab('LESSON_SYNC')}
+            style={{
+              padding: '0.5rem 1.25rem',
+              borderRadius: 'var(--radius-sm)',
+              background: activeTab === 'LESSON_SYNC' ? 'var(--accent)' : 'var(--bg-card)',
+              color: activeTab === 'LESSON_SYNC' ? '#fff' : 'var(--text-muted)',
+              border: '1px solid var(--border-color)',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+            }}
+          >
+            💰 Lesson Fee Cut-Off Sync (§5)
+          </button>
         </div>
 
         <div>
@@ -596,13 +614,14 @@ export default function CutOffReportsView({
                 <th style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>Absences</th>
                 <th style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>SRDs</th>
                 <th style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>No Logout</th>
-                <th style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>Est. Penalties</th>
+                <th style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>Loan Deduction</th>
+                <th style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>Est. Deductions</th>
               </tr>
             </thead>
             <tbody>
               {filteredTeachers.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <td colSpan={10} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                     No teacher records found for the selected period and filters.
                   </td>
                 </tr>
@@ -669,11 +688,18 @@ export default function CutOffReportsView({
                         <span style={{ color: 'var(--text-dim)' }}>0</span>
                       )}
                     </td>
+                    <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
+                      {row.loanDeductionPhp > 0 ? (
+                        <span style={{ color: '#B45309', fontWeight: 600 }}>₱{row.loanDeductionPhp.toLocaleString()}</span>
+                      ) : (
+                        <span style={{ color: 'var(--text-dim)' }}>—</span>
+                      )}
+                    </td>
                     <td style={{ padding: '0.85rem 1rem', textAlign: 'right', fontWeight: 700 }}>
                       {row.netEstimatedPenaltyPhp > 0 ? (
                         <span style={{ color: '#f43f5e' }}>₱{row.netEstimatedPenaltyPhp.toLocaleString()}</span>
                       ) : (
-                        <span style={{ color: '#4ade80' }}>₱0</span>
+                        <span style={{ color: '#0F766E' }}>₱0</span>
                       )}
                     </td>
                   </tr>
@@ -735,7 +761,7 @@ export default function CutOffReportsView({
                           padding: '0.15rem 0.45rem',
                           borderRadius: '4px',
                           background: s.roleType === 'IT' ? 'rgba(168, 85, 247, 0.15)' : 'rgba(59, 130, 246, 0.15)',
-                          color: s.roleType === 'IT' ? '#c084fc' : '#93c5fd',
+                          color: s.roleType === 'IT' ? '#c084fc' : 'var(--ns-blue-light)',
                           border: `1px solid ${s.roleType === 'IT' ? '#a855f7' : '#3b82f6'}`,
                         }}
                       >
@@ -786,6 +812,17 @@ export default function CutOffReportsView({
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Tab Content 3: Lesson Fee Cut-Off Sync Desk (§5, Phase 4.2) */}
+      {activeTab === 'LESSON_SYNC' && (
+        <LessonFeeSyncDesk
+          knownTeachers={(reportData?.rows || []).map((r) => ({
+            portalUsername: r.teacherName,
+            teacherName: r.teacherName,
+            realFullName: r.realFullName,
+          }))}
+        />
       )}
     </div>
   );

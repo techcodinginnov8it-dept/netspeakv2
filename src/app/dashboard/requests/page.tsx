@@ -3,6 +3,7 @@ import { requireAuth, hasPermission, hasRole, PERMISSIONS, ROLES } from '@/lib/a
 import { prisma } from '@/lib/db';
 import SRDRequestForm from '@/components/requests/SRDRequestForm';
 import ETORequestForm from '@/components/requests/ETORequestForm';
+import CashLoanRequestForm from '@/components/requests/CashLoanRequestForm';
 import RequestsApprovalQueue from '@/components/requests/RequestsApprovalQueue';
 
 export const metadata = {
@@ -18,6 +19,7 @@ export default async function RequestsPage() {
   // For submitting teachers: load their own request history
   let mySRDRequests: any[] = [];
   let myETORequests: any[] = [];
+  let myCashLoanRequests: any[] = [];
   let teacherProfile: any = null;
 
   if (canSubmit) {
@@ -26,13 +28,18 @@ export default async function RequestsPage() {
     });
 
     if (teacherProfile) {
-      [mySRDRequests, myETORequests] = await Promise.all([
+      [mySRDRequests, myETORequests, myCashLoanRequests] = await Promise.all([
         prisma.switchRestDayRequest.findMany({
           where: { teacherId: teacherProfile.id },
           orderBy: { createdAt: 'desc' },
           take: 20,
         }),
         prisma.earlyTimeOffRequest.findMany({
+          where: { teacherId: teacherProfile.id },
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+        }),
+        prisma.cashLoanRequest.findMany({
           where: { teacherId: teacherProfile.id },
           orderBy: { createdAt: 'desc' },
           take: 20,
@@ -44,9 +51,10 @@ export default async function RequestsPage() {
   // For managers: load all pending/recent requests
   let allSRDRequests: any[] = [];
   let allETORequests: any[] = [];
+  let allCashLoanRequests: any[] = [];
 
   if (canApprove) {
-    [allSRDRequests, allETORequests] = await Promise.all([
+    [allSRDRequests, allETORequests, allCashLoanRequests] = await Promise.all([
       prisma.switchRestDayRequest.findMany({
         orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
         include: {
@@ -65,12 +73,22 @@ export default async function RequestsPage() {
         },
         take: 100,
       }),
+      prisma.cashLoanRequest.findMany({
+        orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+        include: {
+          teacher: {
+            select: { displayName: true, realFullName: true },
+          },
+        },
+        take: 100,
+      }),
     ]);
   }
 
   // Summary stats
   const pendingSRD = allSRDRequests.filter((r) => r.status === 'PENDING').length;
   const pendingETO = allETORequests.filter((r) => r.status === 'PENDING').length;
+  const pendingCashLoans = allCashLoanRequests.filter((r) => r.status === 'PENDING').length;
 
   const sectionHeader = (title: string, subtitle?: string) => (
     <div style={{ marginBottom: '1.25rem' }}>
@@ -153,6 +171,14 @@ export default async function RequestsPage() {
               {allETORequests.length}
             </div>
           </div>
+          <div style={{ ...cardStyle, borderLeft: '4px solid #f59e0b' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Pending Cash Loans
+            </div>
+            <div style={{ fontSize: '2rem', fontWeight: 700, marginTop: '4px', color: '#f59e0b' }}>
+              {pendingCashLoans}
+            </div>
+          </div>
         </div>
       )}
 
@@ -161,9 +187,13 @@ export default async function RequestsPage() {
         <div style={cardStyle}>
           {sectionHeader(
             '🗂 Approval Queue',
-            'Review and act on pending Switch Rest Day and Early Time-Off requests from the team.'
+            'Review and act on pending Switch Rest Day, Early Time-Off, and cash loan requests from the team.'
           )}
-          <RequestsApprovalQueue srdRequests={allSRDRequests} etoRequests={allETORequests} />
+          <RequestsApprovalQueue
+            srdRequests={allSRDRequests}
+            etoRequests={allETORequests}
+            cashLoanRequests={allCashLoanRequests}
+          />
         </div>
       )}
 
@@ -186,6 +216,15 @@ export default async function RequestsPage() {
               'Request permission to leave before your shift ends. Subject to 30-minute auto-approval window.'
             )}
             <ETORequestForm />
+          </div>
+
+          {/* Cash Loan Form */}
+          <div style={cardStyle}>
+            {sectionHeader(
+              '💰 Cash Loan Request',
+              'Submit a loan request with an agreed repayment schedule and terms acknowledgment.'
+            )}
+            <CashLoanRequestForm />
           </div>
         </div>
       )}
@@ -264,6 +303,43 @@ export default async function RequestsPage() {
                           {r.reason.length > 50 ? r.reason.slice(0, 50) + '…' : r.reason}
                         </td>
                         <td style={{ padding: '10px 12px', color: 'var(--text-dim)' }}>{fmtDate(r.createdAt)}</td>
+                        <td style={{ padding: '10px 12px' }}>{statusBadgeInline(r.status)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Cash Loan History */}
+          <div style={{ marginTop: '2rem' }}>
+            <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Cash Loan Requests
+            </div>
+            {myCashLoanRequests.length === 0 ? (
+              <div style={{ color: 'var(--text-dim)', fontSize: '0.875rem', padding: '1rem 0' }}>
+                No cash loan requests submitted yet.
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      {['Amount', 'Term', 'Deduction', 'Reason', 'Status'].map((h) => (
+                        <th key={h} style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--text-dim)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {myCashLoanRequests.map((r) => (
+                      <tr key={r.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '10px 12px' }}>PHP {Number(r.amount).toLocaleString()}</td>
+                        <td style={{ padding: '10px 12px' }}>{r.termMonths} mo</td>
+                        <td style={{ padding: '10px 12px' }}>PHP {Number(r.deductionPerCycle).toFixed(2)}</td>
+                        <td style={{ padding: '10px 12px', color: 'var(--text-muted)', maxWidth: '180px' }}>
+                          {r.reason.length > 50 ? r.reason.slice(0, 50) + '…' : r.reason}
+                        </td>
                         <td style={{ padding: '10px 12px' }}>{statusBadgeInline(r.status)}</td>
                       </tr>
                     ))}

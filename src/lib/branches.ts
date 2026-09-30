@@ -61,11 +61,12 @@ export async function getActiveBranches(): Promise<Array<{ id: string; name: str
 
 /**
  * Resolves branch scoping condition for queries.
- * - SYSTEM_ADMINISTRATOR or MANAGEMENT:
+ * - SYSTEM_ADMINISTRATOR, MANAGEMENT or OPERATIONS_MANAGER:
  *   If explicitBranch is provided (e.g. from branch selector), scope to it.
  *   If explicitBranch is null or 'ALL', return empty object (all branches).
  * - Branch Admin or Center Staff:
  *   Scope strictly to their assigned branch.
+ *   If no branch is assigned, return an impossible filter so nothing leaks.
  */
 export function resolveBranchFilter(
   user: AuthenticatedUser,
@@ -73,7 +74,8 @@ export function resolveBranchFilter(
 ): { branch?: string } {
   const isGlobalAdmin =
     user.roles.includes(ROLES.SYSTEM_ADMINISTRATOR) ||
-    user.roles.includes(ROLES.MANAGEMENT);
+    user.roles.includes(ROLES.MANAGEMENT) ||
+    user.roles.includes(ROLES.OPERATIONS_MANAGER);
 
   if (isGlobalAdmin) {
     if (explicitBranch && explicitBranch !== 'ALL') {
@@ -82,10 +84,15 @@ export function resolveBranchFilter(
     return {};
   }
 
-  // Branch Admins and other staff are strictly scoped to their assigned branch
-  if (user.branch) {
-    return { branch: user.branch };
+  // Branch Admins and other staff are strictly scoped to their assigned branch.
+  // 'Main Branch' is the fallback default in StaffProfile — not a real branch name,
+  // so we treat it as unset to avoid accidental data leakage.
+  const branch = user.branch && user.branch !== 'Main Branch' ? user.branch : null;
+
+  if (branch) {
+    return { branch };
   }
 
-  return {};
+  // Safety net: no valid branch assigned → return impossible filter (shows nothing)
+  return { branch: '__no_branch__' };
 }

@@ -28,6 +28,7 @@ model User {
   staffProfile   StaffProfile?
   notifications  Notification[]
   auditLogs      AuditLog[]
+  passwordResetTokens PasswordResetToken[]
 
   @@index([email])
   @@index([username])
@@ -51,6 +52,22 @@ enum RegistrationStatus {
   REJECTED
 }
 
+enum ReferralStatus {
+  PENDING
+  HIRED
+  ACTIVE_PROBATIONARY
+  REGULARIZED
+  DISQUALIFIED
+}
+
+enum ReferralFeeStatus {
+  NOT_APPLICABLE
+  PENDING_ELIGIBILITY
+  APPROVED_FOR_PAYMENT
+  PAID
+  FORFEITED
+}
+
 model TeacherProfile {
   id                    String             @id @default(uuid())
   userId                String?            @unique
@@ -59,11 +76,22 @@ model TeacherProfile {
   // Personal Information
   displayName           String
   realFullName          String
+  contactEmail          String?            @unique
   birthday              DateTime
   cellphone             String             @unique
   emergencyContactName  String
   emergencyContactPhone String
   address               String
+
+  // Referral Information (§XXI)
+  isReferred            Boolean            @default(false)
+  referringTeacherName  String?
+  referredByTeacherId   String?
+  referredByTeacher     TeacherProfile?    @relation("TeacherReferrals", fields: [referredByTeacherId], references: [id], onDelete: SetNull)
+  referralStatus        ReferralStatus     @default(PENDING)
+  referralFeeStatus     ReferralFeeStatus  @default(NOT_APPLICABLE)
+  referralNotes         String?
+  referralsMade         TeacherProfile[]   @relation("TeacherReferrals")
 
   // Academic Information
   schoolAttended        String
@@ -100,7 +128,10 @@ model TeacherProfile {
   resignations          TeacherResignation[]
   concernTickets        TeacherConcernTicket[]
   seatingAssignments    SeatingAssignment[]
+  cashLoanRequests      CashLoanRequest[]
   newHireRecord         NewHireRecord?
+  slotCompliances       SlotOpeningCompliance[]
+  incentives            TeacherIncentive[]
 
   @@index([realFullName, birthday])
   @@index([registrationStatus])
@@ -108,6 +139,8 @@ model TeacherProfile {
   @@index([projectType])
   @@index([shiftScheduleId])
   @@index([branch])
+  @@index([referredByTeacherId])
+  @@index([referralFeeStatus])
 }
 
 model ShiftSchedule {
@@ -246,6 +279,37 @@ model EarlyTimeOffRequest {
   @@index([teacherId])
   @@index([status])
   @@index([shiftDate])
+}
+
+enum CashLoanStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REPAID
+}
+
+model CashLoanRequest {
+  id                    String          @id @default(uuid())
+  teacherId             String
+  teacher               TeacherProfile  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  amount                Float
+  termMonths            Int
+  reason                String
+  deductionPerCycle     Float           @default(0)
+  repaymentSchedule     String?
+  termsAcknowledged     Boolean         @default(false)
+
+  status                CashLoanStatus  @default(PENDING)
+  approverId            String?
+  approverRemarks       String?
+  approvedAt            DateTime?
+
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  @@index([teacherId])
+  @@index([status])
 }
 
 model Announcement {
@@ -452,13 +516,13 @@ model IncidentReportTicket {
 }
 
 // ----------------------------------------------------
-// MILESTONE 8: Seating Arrangement (§23)
+// MILESTONE 8: Seating Arrangement (Â§23)
 // ----------------------------------------------------
 
 enum SeatStatus {
   AVAILABLE        // No teacher assigned, ready
   OCCUPIED         // Active teacher assigned
-  PENDING_REFORMAT // Teacher resigned/AWOL — awaiting IT reformat
+  PENDING_REFORMAT // Teacher resigned/AWOL â€” awaiting IT reformat
   UNDER_REFORMAT   // IT is actively reformatting
   RESERVED         // Held for incoming new hire
 }
@@ -489,7 +553,7 @@ model SeatingAssignment {
 
   teacherId        String
   teacher          TeacherProfile  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  schedule         String?         // e.g. "Morning Shift 08:00–17:00"
+  schedule         String?         // e.g. "Morning Shift 08:00â€“17:00"
 
   assignedById     String?
   assignedAt       DateTime        @default(now())
@@ -506,7 +570,7 @@ model SeatingAssignment {
 }
 
 // ----------------------------------------------------
-// MILESTONE 9: New Hire Onboarding (§33–34)
+// MILESTONE 9: New Hire Onboarding (Â§33â€“34)
 // ----------------------------------------------------
 
 enum RequirementStatus {
@@ -533,7 +597,7 @@ model NewHireRecord {
   project          String
 
   status           OnboardingStatus @default(IN_PROGRESS)
-  completionPct    Int              @default(0) // 0–100
+  completionPct    Int              @default(0) // 0â€“100
 
   slotsEligible    Boolean          @default(false)
   slotsEligibleAt  DateTime?
@@ -574,7 +638,7 @@ model NewHireRequirement {
 }
 
 // ----------------------------------------------------
-// MILESTONE 11: Admin & IT Operations, Checklists & Simulations (§9-12, §28-32)
+// MILESTONE 11: Admin & IT Operations, Checklists & Simulations (Â§9-12, Â§28-32)
 // ----------------------------------------------------
 
 enum StaffRoleType {
@@ -684,7 +748,7 @@ model SimulationDrill {
 }
 
 // ----------------------------------------------------
-// MILESTONE 12: Centralized Notification Engine & Scheduled Alerts (§36, §44)
+// MILESTONE 12: Centralized Notification Engine & Scheduled Alerts (Â§36, Â§44)
 // ----------------------------------------------------
 
 enum NotificationType {
@@ -854,3 +918,76 @@ model Branch {
   @@index([isActive])
 }
 
+// -------------------------------------------------------------
+// Slot Opening Compliance & Reminders (§XIX)
+// -------------------------------------------------------------
+
+model SlotOpeningCompliance {
+  id               String         @id @default(uuid())
+  teacherId        String
+  teacher          TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  targetMonth      String         // e.g. "October 2026"
+  targetYear       Int
+  targetMonthIndex Int            // 1-12
+  deadlineDate     DateTime       // Required opening deadline
+  slotsOpenedCount Int            @default(0)
+  requiredSlots    Int            @default(20)
+  isCompliant      Boolean        @default(false)
+  reminderSentAt   DateTime?
+  verifiedAt       DateTime?
+  verifiedById     String?
+  remarks          String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@unique([teacherId, targetMonth])
+  @@index([teacherId])
+  @@index([isCompliant])
+  @@index([deadlineDate])
+}
+
+// -------------------------------------------------------------
+// Teacher Birthday Recognition & Incentives (§5)
+// -------------------------------------------------------------
+
+enum IncentiveType {
+  BIRTHDAY_CASH_VOUCHER
+  BIRTHDAY_IN_KIND_TOKEN
+  PERFORMANCE_AWARD
+  OTHER
+}
+
+model TeacherIncentive {
+  id            String         @id @default(uuid())
+  teacherId     String
+  teacher       TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  type          IncentiveType  @default(BIRTHDAY_CASH_VOUCHER)
+  amountPhp     Decimal?       @default(500)
+  description   String
+  grantedById   String
+  grantedByName String
+  grantedAt     DateTime       @default(now())
+  createdAt     DateTime       @default(now())
+
+  @@index([teacherId])
+  @@index([type])
+  @@index([grantedAt])
+}
+
+
+// -------------------------------------------------------------
+// Password Reset Tokens (�1.4, �41)
+// -------------------------------------------------------------
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([tokenHash])
+}

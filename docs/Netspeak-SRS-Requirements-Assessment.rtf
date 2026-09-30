@@ -1,0 +1,70 @@
+{\rtf1\ansi\deff0
+{\fonttbl{\f0 Aptos;}{\f1 Aptos Display;}}
+{\colortbl;\red31\green78\blue121;\red79\green79\blue79;\red192\green0\blue0;}
+\paperw12240\paperh15840\margl1440\margr1440\margt1260\margb1260
+\pard\qc\sa160\f1\fs36\b\cf1 Netspeak Portal v2.0\par
+\pard\qc\sa240\f1\fs26\b0 System Requirements Specification Assessment\par
+\pard\qc\sa360\f0\fs18\cf2 Prepared: September 25, 2026 | Assessment type: static source review\par
+
+\pard\sa140\f1\fs26\b\cf1 Executive Summary\par
+\pard\sa120\f0\fs21\b0\cf0 The repository implements a broad operational portal and covers many primary Netspeak modules. It should be treated as an operational MVP rather than a complete implementation of the supplied System Requirement Specification (SRS). The strongest areas are core portal structure, role-based operations, teacher/admin workflows, attendance-related UI, reporting screens, onboarding, seating, requests, notifications, and management dashboards.\par
+\pard\sa240\f0\fs21 The principal gaps are integration- and automation-heavy requirements: email delivery, file storage, scheduled background jobs, file evidence handling, and domain-specific workflows such as cash loans, certificates, referral fees, penalties, and slot-opening compliance.\par
+
+\pard\sa140\f1\fs26\b\cf1 Assessment Scope and Method\par
+\pard\li360\fi-180\sa80\f0\fs21\b0 \'95\tab Compared the supplied SRS with repository structure, dashboard routes, server actions, components, and the Prisma schema.\par
+\pard\li360\fi-180\sa80\f0\fs21 \'95\tab Classified a requirement as represented when an identifiable module or implementation surface exists in source code.\par
+\pard\li360\fi-180\sa80\f0\fs21 \'95\tab Did not treat a route, component, or action as proof of production behavior. Live database, SMTP, storage, scheduler, authentication, and browser/device behavior require runtime verification.\par
+\pard\li360\fi-180\sa240\f0\fs21 \'95\tab Preserved existing uncommitted changes; this assessment does not modify application code.\par
+
+\pard\sa140\f1\fs26\b\cf1 Coverage Overview\par
+\pard\sa80\f0\fs21\b Status\tab\tab Meaning\tab\tab Result\par
+\pard\sa80\f0\fs21\b0 Represented\tab Dedicated application modules/actions are present.\tab Core operational scope is broadly represented.\par
+\pard\sa80\f0\fs21 Partial / verify\tab Related module exists, but required rules or automation need proof.\tab Several critical workflows fall here.\par
+\pard\sa240\f0\fs21 No clear evidence\tab No dedicated implementation surface was identified during static review.\tab Multiple SRS requirements remain outstanding.\par
+
+\pard\sa140\f1\fs26\b\cf1 Requirements Represented in the Project\par
+\pard\li360\fi-180\sa80\f0\fs21\b0 \'95\tab Portal foundation: Next.js application, Prisma persistence layer, authentication helpers, role/access concepts, branches, system settings, and audit-log views.\par
+\pard\li360\fi-180\sa80\f0\fs21 \'95\tab Teacher operations: teacher directory, profiles, registration, onboarding views, teacher attendance, daily output, requests, announcements, concerns/tickets, and resignation views.\par
+\pard\li360\fi-180\sa80\f0\fs21 \'95\tab Admin and IT operations: attendance/operations desks, shifts, operational checklists, simulations, ticketing, seating management, and management dashboards.\par
+\pard\li360\fi-180\sa80\f0\fs21 \'95\tab Operational oversight: notifications, reporting, cut-off reporting, dashboard analytics, branches, audit logs, and management-facing pages.\par
+\pard\li360\fi-180\sa240\f0\fs21 \'95\tab Data model: centralized schema in Prisma supports the intended single-system operational approach.\par
+
+\pard\sa140\f1\fs26\b\cf1 Requirements That Are Partial or Need Validation\par
+\pard\sa80\f0\fs21\b SRS Area\tab Static Evidence\tab Required Validation\par
+\pard\sa80\f0\fs21\b0 Freshness check and attendance\tab Attendance and freshness-check modules are present.\tab Confirm photo capture, official timestamping, T-30/T-10/T-0 rules, late/absent decisions, and alerts.\par
+\pard\sa80\f0\fs21 Shift/logout controls\tab Shifts, attendance, and checklists are represented.\tab Confirm logout lockdown, 15-minute window, checklist gates, no-logout detection, and shutdown integration.\par
+\pard\sa80\f0\fs21 Daily output workflow\tab Daily output module is present.\tab Confirm announcement acknowledgement, next-login reminders, and 48-hour correction policy.\par
+\pard\sa80\f0\fs21 SRD and ETO\tab Request forms and approval-oriented pages/actions are present.\tab Confirm automatic schedule and attendance updates, reviewer notes, notifications, and 30-minute ETO auto-approval.\par
+\pard\sa80\f0\fs21 New-hire requirements\tab Onboarding dashboards and teacher onboarding views are present.\tab Confirm every checklist item, verification states, three-day rule, and slot-opening eligibility.\par
+\pard\sa80\f0\fs21 Notifications\tab Notification actions/components are present.\tab Confirm centralized event handling, recipients, scheduled reminders, and delivery channels.\par
+\pard\sa240\f0\fs21 Reports and dashboards\tab Reports, cut-off reports, analytics, and management dashboards are present.\tab Confirm all SRS metrics, filters, export behavior, and data correctness with production records.\par
+
+\pard\sa140\f1\fs26\b\cf1 Requirements With No Clear Implementation Evidence\par
+\pard\li360\fi-180\sa80\f0\fs21\b0 \'95\tab Gmail SMTP account verification, credential delivery, password reset, and email notification delivery.\par
+\pard\li360\fi-180\sa80\f0\fs21 \'95\tab Supabase Storage uploads for selfies, evidence/attachments, resignation letters, and other supporting files.\par
+\pard\li360\fi-180\sa80\f0\fs21 \'95\tab Cash-loan requests, policy terms, deduction schedules, and due-date reminders.\par
+\pard\li360\fi-180\sa80\f0\fs21 \'95\tab Exit-interview slot opening, booking, confirmation, and interview-day reminders.\par
+\pard\li360\fi-180\sa80\f0\fs21 \'95\tab Teacher social-media monitoring tied to active login/logout periods.\par
+\pard\li360\fi-180\sa80\f0\fs21 \'95\tab Slot-opening compliance tracking, deadlines, and reminder automation.\par
+\pard\li360\fi-180\sa80\f0\fs21 \'95\tab Automated Certificate of Service generation from teacher profile data.\par
+\pard\li360\fi-180\sa80\f0\fs21 \'95\tab Referral monitoring and referral-fee status tracking.\par
+\pard\li360\fi-180\sa80\f0\fs21 \'95\tab Configurable attendance penalty rules synchronized into cut-off reporting.\par
+\pard\li360\fi-180\sa80\f0\fs21 \'95\tab Resignation/AWOL automation to notify IT, create reformat tasks, release seating, and update TPCAP lists.\par
+\pard\li360\fi-180\sa80\f0\fs21 \'95\tab Production scheduler/cron execution for alerts, simulation schedules, and other recurring rules.\par
+\pard\li360\fi-180\sa240\f0\fs21 \'95\tab Windows/PC shutdown behavior after logout.\par
+
+\pard\sa140\f1\fs26\b\cf1 Key Risks\par
+\pard\li360\fi-180\sa80\f0\fs21\b0 \'95\tab A visible dashboard or form does not by itself satisfy the SRS when the requirement depends on an automated downstream action.\par
+\pard\li360\fi-180\sa80\f0\fs21 \'95\tab External dependencies are not proven by a static checkout: SMTP credentials, Supabase configuration, storage buckets, browser camera permissions, and scheduled-job hosting must be verified in a deployed environment.\par
+\pard\li360\fi-180\sa240\f0\fs21 \'95\tab Attendance and approval rules affect operational records and should be validated with end-to-end test scenarios before rollout.\par
+
+\pard\sa140\f1\fs26\b\cf1 Recommended Completion Priorities\par
+\pard\sa80\f0\fs21\b Priority\tab Focus\tab Why it matters\par
+\pard\sa80\f0\fs21\b0 1\tab Attendance, shifts, and approval synchronization\tab These are core operational controls and source data for reports.\par
+\pard\sa80\f0\fs21 2\tab File storage, SMTP, and scheduled automation\tab These unlock mandatory evidence, notifications, reminders, and document workflows.\par
+\pard\sa80\f0\fs21 3\tab Unimplemented domain modules\tab Cash loans, exit interviews, certificates, referrals, penalties, and slot compliance close explicit SRS gaps.\par
+\pard\sa240\f0\fs21 4\tab End-to-end acceptance testing\tab Confirms RBAC, calculations, reports, notifications, and auditability with real data.\par
+
+\pard\sa140\f1\fs26\b\cf1 Conclusion\par
+\pard\sa120\f0\fs21\b0 Netspeak Portal v2.0 has a strong structural base and broad module coverage, but it does not yet demonstrate complete compliance with the full SRS. Completion should focus on verifying and implementing the automation, integrations, data synchronization, and specialist workflows listed above. A final acceptance decision should follow a live, role-based test pass against a deployed environment.\par
+}

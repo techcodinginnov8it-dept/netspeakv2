@@ -34,6 +34,7 @@ export interface TeacherCutOffRow {
   totalCancellations: number;
   unexcusedAbsencePenaltyPhp: number;
   noLogoutPenaltyPhp: number;
+  loanDeductionPhp: number;
   netEstimatedPenaltyPhp: number;
 }
 
@@ -106,6 +107,11 @@ export async function getCutOffReportAction(params: CutOffFilterParams): Promise
             date: { gte: start, lte: end },
           },
         },
+        cashLoanRequests: {
+          where: {
+            status: 'APPROVED',
+          },
+        },
       },
       orderBy: { displayName: 'asc' },
     });
@@ -141,9 +147,15 @@ export async function getCutOffReportAction(params: CutOffFilterParams): Promise
         totalCancellations += output.absentClasses || 0;
       }
 
+      // Calculate Cash Loan Amortization deduction for this cut-off (§4.2)
+      let loanDeductionPhp = 0;
+      for (const loan of t.cashLoanRequests) {
+        loanDeductionPhp += loan.deductionPerCycle || 0;
+      }
+
       const unexcusedAbsencePenaltyPhp = absentDays * penaltyPerAbsence;
       const noLogoutPenaltyPhp = noLogoutDays * penaltyPerNoLogout;
-      const netEstimatedPenaltyPhp = unexcusedAbsencePenaltyPhp + noLogoutPenaltyPhp;
+      const netEstimatedPenaltyPhp = unexcusedAbsencePenaltyPhp + noLogoutPenaltyPhp + loanDeductionPhp;
 
       return {
         teacherId: t.id,
@@ -165,6 +177,7 @@ export async function getCutOffReportAction(params: CutOffFilterParams): Promise
         totalCancellations,
         unexcusedAbsencePenaltyPhp,
         noLogoutPenaltyPhp,
+        loanDeductionPhp,
         netEstimatedPenaltyPhp,
       };
     });

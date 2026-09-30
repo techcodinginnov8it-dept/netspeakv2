@@ -206,7 +206,7 @@ export default function NewHireDashboard({
         <button
           onClick={() => setShowCreateModal(true)}
           style={{
-            background: 'var(--accent-primary)',
+            background: 'var(--ns-blue)',
             color: '#fff',
             border: 'none',
             borderRadius: 'var(--radius-md)',
@@ -266,7 +266,7 @@ export default function NewHireDashboard({
               key={tab}
               onClick={() => setActiveTab(tab)}
               style={{
-                background: activeTab === tab ? 'var(--accent-primary)' : 'transparent',
+                background: activeTab === tab ? 'var(--ns-blue)' : 'transparent',
                 color: activeTab === tab ? '#fff' : 'var(--text-dim)',
                 border: 'none',
                 borderRadius: 'var(--radius-sm)',
@@ -348,7 +348,7 @@ export default function NewHireDashboard({
                             style={{
                               width: `${rec.completionPct}%`,
                               height: '100%',
-                              background: rec.completionPct === 100 ? '#10b981' : 'var(--accent-primary)',
+                              background: rec.completionPct === 100 ? '#10b981' : 'var(--ns-blue)',
                             }}
                           />
                         </div>
@@ -646,7 +646,7 @@ export default function NewHireDashboard({
                   setNotesModalReq(null);
                 }}
                 style={{
-                  background: 'var(--accent-primary)',
+                  background: 'var(--ns-blue)',
                   border: 'none',
                   color: '#fff',
                   padding: '0.4rem 0.8rem',
@@ -816,7 +816,7 @@ export default function NewHireDashboard({
                   type="submit"
                   disabled={isPending}
                   style={{
-                    background: 'var(--accent-primary)',
+                    background: 'var(--ns-blue)',
                     border: 'none',
                     color: '#fff',
                     padding: '0.5rem 1.25rem',

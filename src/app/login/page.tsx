@@ -205,7 +205,7 @@ export default async function LoginPage() {
                 textDecoration: 'underline',
               }}
             >
-              Apply / Register here →
+              <br />Apply / Register here → <br />
             </Link>
           </div>
 
