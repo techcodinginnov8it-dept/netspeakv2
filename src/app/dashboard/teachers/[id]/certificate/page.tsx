@@ -4,6 +4,9 @@ import { getCertificateOfServiceAction } from '@/actions/certificates';
 import CertificateOfServiceViewer from '@/components/teachers/CertificateOfServiceViewer';
 import { notFound } from 'next/navigation';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export const metadata = {
   title: 'Certificate of Service | Netspeak Portal',
 };

@@ -6,6 +6,9 @@ import { notFound } from 'next/navigation';
 import { getShiftSchedulesAction } from '@/actions/shifts';
 import { resolveBranchFilter } from '@/lib/branches';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export const metadata = {
   title: 'Teacher Profile | Netspeak Portal',
 };
