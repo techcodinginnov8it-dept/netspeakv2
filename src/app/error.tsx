@@ -29,18 +29,41 @@ export default function ErrorBoundary({
         <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
           {error.message || 'An unexpected error occurred while processing your request.'}
         </p>
-        <button
-          onClick={() => reset()}
-          style={{
-            background: 'var(--color-primary)',
-            color: '#fff',
-            padding: '0.6rem 1.5rem',
-            borderRadius: 'var(--radius-sm)',
-            fontWeight: 500
-          }}
-        >
-          Try Again
-        </button>
+        {error.digest && (
+          <p style={{ color: 'var(--text-dim)', fontSize: '0.75rem', marginBottom: '1rem', fontFamily: 'monospace' }}>
+            Digest: {error.digest}
+          </p>
+        )}
+        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+          <button
+            onClick={() => reset()}
+            style={{
+              background: 'var(--color-primary)',
+              color: '#fff',
+              padding: '0.6rem 1.5rem',
+              borderRadius: 'var(--radius-sm)',
+              fontWeight: 500,
+              cursor: 'pointer',
+              border: 'none',
+            }}
+          >
+            Try Again
+          </button>
+          <a
+            href="/login"
+            style={{
+              background: 'transparent',
+              color: 'var(--color-primary)',
+              padding: '0.6rem 1.5rem',
+              borderRadius: 'var(--radius-sm)',
+              fontWeight: 500,
+              textDecoration: 'none',
+              border: '1px solid var(--border-color)',
+            }}
+          >
+            Return to Login
+          </a>
+        </div>
       </div>
     </div>
   );

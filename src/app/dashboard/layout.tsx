@@ -18,28 +18,33 @@ export default async function DashboardLayout({
   // Check if teacher is currently timed in without time out (active on duty)
   let isDutyLocked = false;
   if (isTeacher) {
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
+    try {
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
 
-    const teacherProfile = await prisma.teacherProfile.findFirst({
-      where: { userId: user.id },
-      select: { id: true },
-    });
-
-    if (teacherProfile) {
-      const activeAttendance = await prisma.teacherAttendance.findUnique({
-        where: {
-          teacherId_date: {
-            teacherId: teacherProfile.id,
-            date: today,
-          },
-        },
-        select: { timeIn: true, timeOut: true },
+      const teacherProfile = await prisma.teacherProfile.findFirst({
+        where: { userId: user.id },
+        select: { id: true },
       });
 
-      if (activeAttendance?.timeIn && !activeAttendance.timeOut) {
-        isDutyLocked = true;
+      if (teacherProfile) {
+        const activeAttendance = await prisma.teacherAttendance.findUnique({
+          where: {
+            teacherId_date: {
+              teacherId: teacherProfile.id,
+              date: today,
+            },
+          },
+          select: { timeIn: true, timeOut: true },
+        });
+
+        if (activeAttendance?.timeIn && !activeAttendance.timeOut) {
+          isDutyLocked = true;
+        }
       }
+    } catch (err) {
+      console.error('[DashboardLayout] Failed to check duty status:', err);
+      isDutyLocked = false;
     }
   }
 

@@ -37,28 +37,34 @@ export async function getTodayBirthdaysAction(): Promise<TodayBirthdayTeacher[]>
   const branchFilter = resolveBranchFilter(user);
 
   // Fetch approved active teachers
-  const teachers = await prisma.teacherProfile.findMany({
-    where: {
-      registrationStatus: 'APPROVED',
-      ...branchFilter,
-    },
-    include: {
-      incentives: {
-        where: {
-          grantedAt: {
-            gte: new Date(now.getFullYear(), 0, 1), // Current calendar year
+  let teachers: any[] = [];
+  try {
+    teachers = await prisma.teacherProfile.findMany({
+      where: {
+        registrationStatus: 'APPROVED',
+        ...branchFilter,
+      },
+      include: {
+        incentives: {
+          where: {
+            grantedAt: {
+              gte: new Date(now.getFullYear(), 0, 1), // Current calendar year
+            },
+          },
+          select: {
+            id: true,
+            type: true,
+            amountPhp: true,
+            grantedByName: true,
+            grantedAt: true,
           },
         },
-        select: {
-          id: true,
-          type: true,
-          amountPhp: true,
-          grantedByName: true,
-          grantedAt: true,
-        },
       },
-    },
-  });
+    });
+  } catch (err) {
+    console.error('[getTodayBirthdaysAction] Failed to fetch birthday teachers:', err);
+    return [];
+  }
 
   // Filter teachers whose birthday matches currentMonth and currentDay
   const birthdayTeachers = teachers.filter((t) => {

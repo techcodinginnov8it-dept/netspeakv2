@@ -125,24 +125,28 @@ export default async function DashboardPage() {
   let activeAnnouncements: any[] = [];
 
   if (isTeacherUser) {
-    teacherProfile = await prisma.teacherProfile.findFirst({
-      where: { userId: user.id },
-      include: { shiftSchedule: true },
-    });
+    try {
+      teacherProfile = await prisma.teacherProfile.findFirst({
+        where: { userId: user.id },
+        include: { shiftSchedule: true },
+      });
 
-    if (teacherProfile) {
-      [todayAttendance, todayDailyOutput, activeAnnouncements] = await Promise.all([
-        prisma.teacherAttendance.findUnique({
-          where: { teacherId_date: { teacherId: teacherProfile.id, date: normalizeDate() } },
-        }),
-        prisma.dailyOutput.findUnique({
-          where: { teacherId_date: { teacherId: teacherProfile.id, date: normalizeDate() } },
-        }),
-        prisma.announcement.findMany({
-          where: { isActive: true },
-          orderBy: { createdAt: 'desc' },
-        }),
-      ]);
+      if (teacherProfile) {
+        [todayAttendance, todayDailyOutput, activeAnnouncements] = await Promise.all([
+          prisma.teacherAttendance.findUnique({
+            where: { teacherId_date: { teacherId: teacherProfile.id, date: normalizeDate() } },
+          }),
+          prisma.dailyOutput.findUnique({
+            where: { teacherId_date: { teacherId: teacherProfile.id, date: normalizeDate() } },
+          }),
+          prisma.announcement.findMany({
+            where: { isActive: true },
+            orderBy: { createdAt: 'desc' },
+          }),
+        ]);
+      }
+    } catch (err) {
+      console.error('[DashboardPage] Failed to fetch teacher data:', err);
     }
   }
 
@@ -170,83 +174,84 @@ export default async function DashboardPage() {
   let chartsData: DashboardChartsData | null = null;
 
   if (canReadUsers) {
-    const today = normalizeDate();
-    const sevenDaysAgo = new Date(today);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+    try {
+      const today = normalizeDate();
+      const sevenDaysAgo = new Date(today);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
 
-    const [
-      totalTeachers,
-      approvedTeachers,
-      pendingTeachers,
-      underReviewTeachers,
-      domesticTeachers,
-      overseasTeachers,
-      ftTeachers,
-      ftexTeachers,
-      ttpTeachers,
-      todayPresentCount,
-      todayLateCount,
-      todayAbsentCount,
-      past7DaysAttendance,
-      openConcerns,
-      pendingETO,
-      pendingSRD,
-      activeResignations,
-      inProgressOnboarding,
-      occupiedSeats,
-      totalSeats,
-      pendingReformatSeats,
-      availableSeats,
-      activeAnnouncementsCount,
-      openIncidents,
-      teacherDirectoryFetch,
-    ] = await Promise.all([
-      prisma.teacherProfile.count(),
-      prisma.teacherProfile.count({ where: { registrationStatus: 'APPROVED' } }),
-      prisma.teacherProfile.count({ where: { registrationStatus: 'PENDING' } }),
-      prisma.teacherProfile.count({ where: { registrationStatus: 'UNDER_REVIEW' } }),
-      prisma.teacherProfile.count({ where: { department: 'DOMESTIC', registrationStatus: 'APPROVED' } }),
-      prisma.teacherProfile.count({ where: { department: 'OVERSEAS', registrationStatus: 'APPROVED' } }),
-      prisma.teacherProfile.count({ where: { projectType: 'FT', registrationStatus: 'APPROVED' } }),
-      prisma.teacherProfile.count({ where: { projectType: 'FTEX', registrationStatus: 'APPROVED' } }),
-      prisma.teacherProfile.count({ where: { projectType: 'TTP', registrationStatus: 'APPROVED' } }),
-      prisma.teacherAttendance.count({
-        where: { date: today, status: 'PRESENT' },
-      }),
-      prisma.teacherAttendance.count({
-        where: { date: today, status: 'LATE' },
-      }),
-      prisma.teacherAttendance.count({
-        where: { date: today, status: { in: ['ABSENT_VALID', 'ABSENT_INVALID'] } },
-      }),
-      prisma.teacherAttendance.findMany({
-        where: { date: { gte: sevenDaysAgo, lte: today } },
-        select: { date: true, status: true, isLate: true },
-      }),
-      prisma.teacherConcernTicket.count({
-        where: { status: { in: ['SUBMITTED', 'ASSIGNED', 'UNDER_REVIEW'] } },
-      }),
-      prisma.earlyTimeOffRequest.count({ where: { status: 'PENDING' } }),
-      prisma.switchRestDayRequest.count({ where: { status: 'PENDING' } }),
-      prisma.teacherResignation.count({
-        where: { status: { notIn: ['DEACTIVATED', 'WITHDRAWN'] } },
-      }),
-      prisma.newHireRecord.count({ where: { status: 'IN_PROGRESS' } }),
-      prisma.workstation.count({ where: { status: 'OCCUPIED' } }),
-      prisma.workstation.count(),
-      prisma.workstation.count({ where: { status: 'PENDING_REFORMAT' } }),
-      prisma.workstation.count({ where: { status: 'AVAILABLE' } }),
-      prisma.announcement.count({ where: { isActive: true } }),
-      prisma.incidentReportTicket.count({ where: { status: { in: ['REPORTED', 'INVESTIGATING'] } } }),
-      prisma.teacherProfile.findMany({
-        orderBy: { createdAt: 'desc' },
-        include: {
-          user: {
-            select: { username: true, isActive: true },
+      const [
+        totalTeachers,
+        approvedTeachers,
+        pendingTeachers,
+        underReviewTeachers,
+        domesticTeachers,
+        overseasTeachers,
+        ftTeachers,
+        ftexTeachers,
+        ttpTeachers,
+        todayPresentCount,
+        todayLateCount,
+        todayAbsentCount,
+        past7DaysAttendance,
+        openConcerns,
+        pendingETO,
+        pendingSRD,
+        activeResignations,
+        inProgressOnboarding,
+        occupiedSeats,
+        totalSeats,
+        pendingReformatSeats,
+        availableSeats,
+        activeAnnouncementsCount,
+        openIncidents,
+        teacherDirectoryFetch,
+      ] = await Promise.all([
+        prisma.teacherProfile.count(),
+        prisma.teacherProfile.count({ where: { registrationStatus: 'APPROVED' } }),
+        prisma.teacherProfile.count({ where: { registrationStatus: 'PENDING' } }),
+        prisma.teacherProfile.count({ where: { registrationStatus: 'UNDER_REVIEW' } }),
+        prisma.teacherProfile.count({ where: { department: 'DOMESTIC', registrationStatus: 'APPROVED' } }),
+        prisma.teacherProfile.count({ where: { department: 'OVERSEAS', registrationStatus: 'APPROVED' } }),
+        prisma.teacherProfile.count({ where: { projectType: 'FT', registrationStatus: 'APPROVED' } }),
+        prisma.teacherProfile.count({ where: { projectType: 'FTEX', registrationStatus: 'APPROVED' } }),
+        prisma.teacherProfile.count({ where: { projectType: 'TTP', registrationStatus: 'APPROVED' } }),
+        prisma.teacherAttendance.count({
+          where: { date: today, status: 'PRESENT' },
+        }),
+        prisma.teacherAttendance.count({
+          where: { date: today, status: 'LATE' },
+        }),
+        prisma.teacherAttendance.count({
+          where: { date: today, status: { in: ['ABSENT_VALID', 'ABSENT_INVALID'] } },
+        }),
+        prisma.teacherAttendance.findMany({
+          where: { date: { gte: sevenDaysAgo, lte: today } },
+          select: { date: true, status: true, isLate: true },
+        }),
+        prisma.teacherConcernTicket.count({
+          where: { status: { in: ['SUBMITTED', 'ASSIGNED', 'UNDER_REVIEW'] } },
+        }),
+        prisma.earlyTimeOffRequest.count({ where: { status: 'PENDING' } }),
+        prisma.switchRestDayRequest.count({ where: { status: 'PENDING' } }),
+        prisma.teacherResignation.count({
+          where: { status: { notIn: ['DEACTIVATED', 'WITHDRAWN'] } },
+        }),
+        prisma.newHireRecord.count({ where: { status: 'IN_PROGRESS' } }),
+        prisma.workstation.count({ where: { status: 'OCCUPIED' } }),
+        prisma.workstation.count(),
+        prisma.workstation.count({ where: { status: 'PENDING_REFORMAT' } }),
+        prisma.workstation.count({ where: { status: 'AVAILABLE' } }),
+        prisma.announcement.count({ where: { isActive: true } }),
+        prisma.incidentReportTicket.count({ where: { status: { in: ['REPORTED', 'INVESTIGATING'] } } }),
+        prisma.teacherProfile.findMany({
+          orderBy: { createdAt: 'desc' },
+          include: {
+            user: {
+              select: { username: true, isActive: true },
+            },
           },
-        },
-      }),
-    ]);
+        }),
+      ]);
 
     const totalPresentOrLate = todayPresentCount + todayLateCount;
 
@@ -324,6 +329,9 @@ export default async function DashboardPage() {
       openIncidents,
       attendanceTrend,
     };
+    } catch (err) {
+      console.error('[DashboardPage] Failed to fetch admin metrics:', err);
+    }
   }
 
   const todayBirthdays = await getTodayBirthdaysAction();
