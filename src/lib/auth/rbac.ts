@@ -35,24 +35,28 @@ export async function requireAuth(): Promise<AuthenticatedUser> {
 }
 
 /**
- * Server-side guard: Ensures user possesses a specific permission
+ * Server-side guard: Ensures user possesses a specific permission.
+ * Redirects to /dashboard instead of throwing, to avoid React error #441
+ * (unhandled Server Component exceptions in production).
  */
 export async function requirePermission(permission: string): Promise<AuthenticatedUser> {
   const user = await requireAuth();
   if (!hasPermission(user, permission)) {
-    throw new Error(`Unauthorized: Missing required permission [${permission}]`);
+    redirect('/dashboard');
   }
   return user;
 }
 
 /**
- * Server-side guard: Ensures user possesses at least one of the specified roles
+ * Server-side guard: Ensures user possesses at least one of the specified roles.
+ * Redirects to /dashboard instead of throwing, to avoid React error #441
+ * (unhandled Server Component exceptions in production).
  */
 export async function requireRole(allowedRoles: string[]): Promise<AuthenticatedUser> {
   const user = await requireAuth();
   const hasAllowedRole = allowedRoles.some((r) => hasRole(user, r));
   if (!hasAllowedRole) {
-    throw new Error(`Unauthorized: Missing required role [${allowedRoles.join(', ')}]`);
+    redirect('/dashboard');
   }
   return user;
 }
