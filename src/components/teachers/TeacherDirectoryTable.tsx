@@ -182,7 +182,6 @@ export default function TeacherDirectoryTable({
               <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Teacher / Display Name</th>
               <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Real Complete Name</th>
               <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Branch</th>
-              <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Shift (PHT)</th>
               <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Contact</th>
               <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Dept & Type</th>
               <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Status</th>
@@ -192,7 +191,7 @@ export default function TeacherDirectoryTable({
           <tbody>
             {filteredTeachers.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ padding: '32px', textAlign: 'center', color: 'var(--foreground-muted)' }}>
+                <td colSpan={7} style={{ padding: '32px', textAlign: 'center', color: 'var(--foreground-muted)' }}>
                   No teachers found matching the criteria.
                 </td>
               </tr>
@@ -220,28 +219,6 @@ export default function TeacherDirectoryTable({
                     }}>
                       📍 {t.branch || 'Atimonan'}
                     </span>
-                  </td>
-                  <td style={{ padding: '14px 16px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
-                    {t.shiftSchedule ? (
-                      <span style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        padding: '4px 9px',
-                        borderRadius: 'var(--radius-sm)',
-                        background: 'rgba(16, 185, 129, 0.1)',
-                        color: '#059669',
-                        border: '1px solid rgba(16, 185, 129, 0.25)',
-                      }}>
-                        🕐 {t.shiftSchedule.name.split(' (')[0]} ({t.shiftSchedule.startTime}–{t.shiftSchedule.endTime})
-                      </span>
-                    ) : (
-                      <span style={{ fontSize: '0.78rem', color: 'var(--foreground-muted)', fontStyle: 'italic' }}>
-                        Unassigned
-                      </span>
-                    )}
                   </td>
                   <td style={{ padding: '14px 16px', color: 'var(--foreground-muted)', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                     {t.cellphone}
