@@ -136,7 +136,7 @@ export default function TeacherConcernsView({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
-            ðŸ’¬ Teacher Concern Ticketing
+            💬 Teacher Concern Ticketing
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
             Submit and monitor your support requests across technical, attendance, payment, and student concerns.
@@ -181,7 +181,7 @@ export default function TeacherConcernsView({
               color: 'var(--text-muted)',
             }}
           >
-            <div style={{ fontSize: '1.75rem', marginBottom: '0.5rem' }}>ðŸŽ«</div>
+            <div style={{ fontSize: '1.75rem', marginBottom: '0.5rem' }}>🎫</div>
             <p style={{ fontSize: '1rem', fontWeight: 600 }}>No concern tickets filed yet</p>
             <p style={{ fontSize: '0.85rem', marginTop: '0.25rem' }}>
               If you experience any equipment issues, scheduling conflicts, or attendance questions, click "Submit Concern Ticket".
@@ -233,7 +233,7 @@ export default function TeacherConcernsView({
                     </span>
 
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
-                      â€¢ {CATEGORY_LABELS[ticket.category]}
+                      • {CATEGORY_LABELS[ticket.category]}
                     </span>
                   </div>
 
@@ -317,7 +317,7 @@ export default function TeacherConcernsView({
                 onClick={() => setShowModal(false)}
                 style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '1.25rem', cursor: 'pointer' }}
               >
-                âœ•
+                ✕
               </button>
             </div>
 
@@ -467,7 +467,7 @@ export default function TeacherConcernsView({
                 onClick={() => setSelectedTicket(null)}
                 style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '1.25rem', cursor: 'pointer' }}
               >
-                âœ•
+                ✕
               </button>
             </div>
 

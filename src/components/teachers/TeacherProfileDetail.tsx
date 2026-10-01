@@ -195,7 +195,7 @@ export default function TeacherProfileDetail({
             fontWeight: 700,
             border: '1px solid rgba(15, 118, 110, 0.35)'
           }}>
-            âœ“ Approved & Active
+            ✓ Approved & Active
           </span>
         );
       case 'UNDER_REVIEW':
@@ -209,7 +209,7 @@ export default function TeacherProfileDetail({
             fontWeight: 700,
             border: '1px solid rgba(0, 82, 204, 0.25)'
           }}>
-            ðŸ” Under Review
+            🔍 Under Review
           </span>
         );
       case 'REJECTED':
@@ -223,7 +223,7 @@ export default function TeacherProfileDetail({
             fontWeight: 700,
             border: '1px solid rgba(239, 68, 68, 0.25)'
           }}>
-            âœ• Rejected
+            ✕ Rejected
           </span>
         );
       default:
@@ -261,7 +261,7 @@ export default function TeacherProfileDetail({
           {/* Action Workflow Controls */}
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             <Link href="/dashboard/teachers" className="btn btn-secondary" style={{ fontSize: '0.9rem' }}>
-              â† Back to Teachers
+              ← Back to Teachers
             </Link>
 
             {teacher.registrationStatus === 'APPROVED' && (
@@ -330,7 +330,7 @@ export default function TeacherProfileDetail({
             color: '#DC2626',
             fontWeight: 600
           }}>
-            âš ï¸ {error}
+            ⚠️ï¸ {error}
           </div>
         )}
 
@@ -344,7 +344,7 @@ export default function TeacherProfileDetail({
             color: '#0F766E',
             fontWeight: 600
           }}>
-            âœ“ {successMessage}
+            ✓ {successMessage}
           </div>
         )}
 
@@ -357,7 +357,7 @@ export default function TeacherProfileDetail({
             border: '1px solid var(--primary)',
           }}>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--primary)', marginBottom: '8px' }}>
-              ðŸ”‘ Credentials Generated Successfully
+              🔑 Credentials Generated Successfully
             </h3>
             <p style={{ fontSize: '0.9rem', color: 'var(--foreground-muted)', marginBottom: '12px' }}>
               Initial login credentials have been generated and the user account is now active.
@@ -397,7 +397,7 @@ export default function TeacherProfileDetail({
         {/* Card 1: Personal & Emergency Contact */}
         <div className="card" style={{ padding: '24px' }}>
           <h3 style={{ fontSize: '1.15rem', fontWeight: 600, marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-            ðŸ‘¤ Personal Details
+            👤 Personal Details
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.95rem' }}>
             <div>
@@ -430,7 +430,7 @@ export default function TeacherProfileDetail({
         {/* Card 2: Academic Background */}
         <div className="card" style={{ padding: '24px' }}>
           <h3 style={{ fontSize: '1.15rem', fontWeight: 600, marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-            ðŸŽ“ Academic Background
+            🎓 Academic Background
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.95rem' }}>
             <div>
@@ -462,7 +462,7 @@ export default function TeacherProfileDetail({
         <div className="card" style={{ padding: '24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
             <h3 style={{ fontSize: '1.15rem', fontWeight: 600 }}>
-              âš™ï¸ Operational Setup
+              ⚙️ Operational Setup
             </h3>
             {canUpdate && !isEditingOps && (
               <button
@@ -595,7 +595,7 @@ export default function TeacherProfileDetail({
               </div>
               <div>
                 <span style={{ color: 'var(--foreground-muted)', fontSize: '0.85rem', display: 'block' }}>51Talk Portal Password</span>
-                <code>{teacher.portalPassword ? 'â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢' : 'None'}</code>
+                <code>{teacher.portalPassword ? '••••••••' : 'None'}</code>
               </div>
             </div>
           )}
@@ -604,14 +604,14 @@ export default function TeacherProfileDetail({
       {/* Card 4: Shift Assignment */}
       <div className="card" style={{ padding: '24px', marginTop: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-          <h3 style={{ fontSize: '1.15rem', fontWeight: 600 }}>ðŸ• Shift Assignment</h3>
+          <h3 style={{ fontSize: '1.15rem', fontWeight: 600 }}>🕐 Shift Assignment</h3>
           {teacher.shiftSchedule && (
             <span style={{
               padding: '4px 12px', borderRadius: '999px', fontSize: '0.82rem', fontWeight: 700,
               background: 'linear-gradient(135deg, rgba(0,82,204,0.12), rgba(23,185,120,0.12))',
               border: '1px solid rgba(0,82,204,0.2)', color: '#0052CC',
             }}>
-              {teacher.shiftSchedule.startTime} â€“ {teacher.shiftSchedule.endTime} PHT
+              {teacher.shiftSchedule.startTime} – {teacher.shiftSchedule.endTime} PHT
             </span>
           )}
         </div>
@@ -642,7 +642,7 @@ export default function TeacherProfileDetail({
                 backgroundColor: 'rgba(23,185,120,0.1)', border: '1px solid rgba(23,185,120,0.3)',
                 color: '#17B978', fontSize: '0.88rem', marginBottom: '12px',
               }}>
-                âœ“ {shiftSuccess}
+                ✓ {shiftSuccess}
               </div>
             )}
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -652,10 +652,10 @@ export default function TeacherProfileDetail({
                 onChange={(e) => { setShiftId(e.target.value); setShiftSuccess(null); }}
                 style={{ flex: 1, minWidth: '240px' }}
               >
-                <option value="">â€” No Shift Assigned â€”</option>
+                <option value="">— No Shift Assigned —</option>
                 {allShifts.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.name} ({s.startTime}â€“{s.endTime} PHT)
+                    {s.name} ({s.startTime}–{s.endTime} PHT)
                   </option>
                 ))}
               </select>
@@ -666,7 +666,7 @@ export default function TeacherProfileDetail({
                 onClick={handleAssignShift}
                 style={{ whiteSpace: 'nowrap', fontSize: '0.88rem' }}
               >
-                {isPending && isAssigningShift ? 'Savingâ€¦' : 'Assign Shift'}
+                {isPending && isAssigningShift ? 'Saving…' : 'Assign Shift'}
               </button>
             </div>
             <p style={{ marginTop: '8px', fontSize: '0.78rem', color: 'var(--foreground-muted)' }}>

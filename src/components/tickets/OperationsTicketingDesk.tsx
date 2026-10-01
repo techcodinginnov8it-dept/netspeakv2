@@ -247,7 +247,7 @@ export default function OperationsTicketingDesk({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
-            ðŸŽ« Support Desk & Incident Reports
+            🎫 Support Desk & Incident Reports
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
             Central operations management desk for Teacher Concerns and Incident Tickets.
@@ -261,7 +261,7 @@ export default function OperationsTicketingDesk({
             className="btn btn-primary"
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
           >
-            <span>âš ï¸</span>
+            <span>⚠️ï¸</span>
             <span>File Incident Report</span>
           </button>
         )}
@@ -298,7 +298,7 @@ export default function OperationsTicketingDesk({
             padding: '0.5rem 1.25rem',
           }}
         >
-          ðŸ’¬ Teacher Concerns ({concerns.length})
+          💬 Teacher Concerns ({concerns.length})
         </button>
 
         <button
@@ -314,7 +314,7 @@ export default function OperationsTicketingDesk({
             padding: '0.5rem 1.25rem',
           }}
         >
-          âš ï¸ Incident Reports ({incidents.length})
+          ⚠️ï¸ Incident Reports ({incidents.length})
         </button>
       </div>
 
@@ -618,7 +618,7 @@ export default function OperationsTicketingDesk({
                 onClick={() => setActionConcern(null)}
                 style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '1.25rem', cursor: 'pointer' }}
               >
-                âœ•
+                ✕
               </button>
             </div>
 
@@ -745,7 +745,7 @@ export default function OperationsTicketingDesk({
                 onClick={() => setShowIncidentModal(false)}
                 style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '1.25rem', cursor: 'pointer' }}
               >
-                âœ•
+                ✕
               </button>
             </div>
 
@@ -924,14 +924,14 @@ export default function OperationsTicketingDesk({
                 onClick={() => setSelectedIncident(null)}
                 style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '1.25rem', cursor: 'pointer' }}
               >
-                âœ•
+                ✕
               </button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
               <div>
                 <span style={{ color: 'var(--text-dim)' }}>Branch / Person Involved:</span>
-                <div style={{ fontWeight: 600 }}>{selectedIncident.branch} â€” {selectedIncident.personInvolved}</div>
+                <div style={{ fontWeight: 600 }}>{selectedIncident.branch} — {selectedIncident.personInvolved}</div>
               </div>
 
               <div>
@@ -988,7 +988,7 @@ export default function OperationsTicketingDesk({
                 className="btn btn-primary"
                 disabled={isPending}
               >
-                Mark Resolved âœ“
+                Mark Resolved ✓
               </button>
             </div>
           </div>

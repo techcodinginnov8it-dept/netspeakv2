@@ -24,7 +24,7 @@ export default function TeacherRegistrationForm() {
           margin: '0 auto 20px',
           fontSize: '32px'
         }}>
-          âœ“
+          ✓
         </div>
         <h2 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '12px' }}>Registration Submitted!</h2>
         <p style={{ color: 'var(--foreground-muted)', lineHeight: 1.6, marginBottom: '24px' }}>
@@ -52,7 +52,7 @@ export default function TeacherRegistrationForm() {
           fontWeight: 600,
           fontSize: '0.95rem'
         }}>
-          âš ï¸ {state.error}
+          ⚠️ï¸ {state.error}
         </div>
       )}
 
@@ -373,7 +373,7 @@ export default function TeacherRegistrationForm() {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Link href="/login" style={{ color: 'var(--foreground-muted)', fontSize: '0.9rem' }}>
-          â† Already have an account? Sign in
+          ← Already have an account? Sign in
         </Link>
         <button
           type="submit"
@@ -381,7 +381,7 @@ export default function TeacherRegistrationForm() {
           disabled={isPending}
           style={{ minWidth: 200, padding: '12px 24px', fontSize: '1rem' }}
         >
-          {isPending ? 'Validating & Submitting...' : 'Submit Registration â†’'}
+          {isPending ? 'Validating & Submitting...' : 'Submit Registration →'}
         </button>
       </div>
     </form>
