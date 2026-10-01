@@ -187,13 +187,17 @@ export default function TeacherProfileDetail({
       case 'APPROVED':
         return (
           <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
             padding: '5px 14px',
             borderRadius: '999px',
             backgroundColor: 'rgba(15, 118, 110, 0.1)',
             color: '#0F766E',
             fontSize: '0.85rem',
             fontWeight: 700,
-            border: '1px solid rgba(15, 118, 110, 0.35)'
+            border: '1px solid rgba(15, 118, 110, 0.35)',
+            whiteSpace: 'nowrap',
           }}>
             ✓ Approved & Active
           </span>
@@ -201,13 +205,17 @@ export default function TeacherProfileDetail({
       case 'UNDER_REVIEW':
         return (
           <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
             padding: '5px 14px',
             borderRadius: '999px',
             backgroundColor: 'rgba(0, 82, 204, 0.1)',
             color: '#0052CC',
             fontSize: '0.85rem',
             fontWeight: 700,
-            border: '1px solid rgba(0, 82, 204, 0.25)'
+            border: '1px solid rgba(0, 82, 204, 0.25)',
+            whiteSpace: 'nowrap',
           }}>
             🔍 Under Review
           </span>
@@ -215,13 +223,17 @@ export default function TeacherProfileDetail({
       case 'REJECTED':
         return (
           <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
             padding: '5px 14px',
             borderRadius: '999px',
             backgroundColor: 'rgba(239, 68, 68, 0.1)',
             color: '#DC2626',
             fontSize: '0.85rem',
             fontWeight: 700,
-            border: '1px solid rgba(239, 68, 68, 0.25)'
+            border: '1px solid rgba(239, 68, 68, 0.25)',
+            whiteSpace: 'nowrap',
           }}>
             ✕ Rejected
           </span>
@@ -229,15 +241,19 @@ export default function TeacherProfileDetail({
       default:
         return (
           <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
             padding: '5px 14px',
             borderRadius: '999px',
             backgroundColor: 'rgba(217, 119, 6, 0.1)',
             color: '#B45309',
             fontSize: '0.85rem',
             fontWeight: 700,
-            border: '1px solid rgba(217, 119, 6, 0.25)'
+            border: '1px solid rgba(217, 119, 6, 0.25)',
+            whiteSpace: 'nowrap',
           }}>
-            â³ Pending Admin Review
+            ⏳ Pending Admin Review
           </span>
         );
     }
@@ -600,16 +616,18 @@ export default function TeacherProfileDetail({
             </div>
           )}
         </div>
+      </div>
 
       {/* Card 4: Shift Assignment */}
-      <div className="card" style={{ padding: '24px', marginTop: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+      <div className="card" style={{ padding: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
           <h3 style={{ fontSize: '1.15rem', fontWeight: 600 }}>🕐 Shift Assignment</h3>
           {teacher.shiftSchedule && (
             <span style={{
               padding: '4px 12px', borderRadius: '999px', fontSize: '0.82rem', fontWeight: 700,
               background: 'linear-gradient(135deg, rgba(0,82,204,0.12), rgba(23,185,120,0.12))',
               border: '1px solid rgba(0,82,204,0.2)', color: '#0052CC',
+              whiteSpace: 'nowrap',
             }}>
               {teacher.shiftSchedule.startTime} – {teacher.shiftSchedule.endTime} PHT
             </span>
@@ -674,7 +692,6 @@ export default function TeacherProfileDetail({
             </p>
           </div>
         )}
-      </div>
       </div>
 
       {/* Rejection Modal */}

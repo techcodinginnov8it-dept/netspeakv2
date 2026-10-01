@@ -63,6 +63,9 @@ export default function TeacherDirectoryTable({
       case 'APPROVED':
         return (
           <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '5px',
             padding: '4px 10px',
             borderRadius: '999px',
             backgroundColor: 'rgba(13, 148, 136, 0.1)',
@@ -70,13 +73,17 @@ export default function TeacherDirectoryTable({
             border: '1px solid rgba(13, 148, 136, 0.25)',
             fontSize: '0.75rem',
             fontWeight: 700,
+            whiteSpace: 'nowrap',
           }}>
-            Approved
+            ✓ Approved
           </span>
         );
       case 'UNDER_REVIEW':
         return (
           <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '5px',
             padding: '4px 10px',
             borderRadius: '999px',
             backgroundColor: 'rgba(0, 82, 204, 0.1)',
@@ -84,13 +91,17 @@ export default function TeacherDirectoryTable({
             border: '1px solid rgba(0, 82, 204, 0.25)',
             fontSize: '0.75rem',
             fontWeight: 700,
+            whiteSpace: 'nowrap',
           }}>
-            Under Review
+            🔍 Under Review
           </span>
         );
       case 'REJECTED':
         return (
           <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '5px',
             padding: '4px 10px',
             borderRadius: '999px',
             backgroundColor: 'rgba(239, 68, 68, 0.1)',
@@ -98,13 +109,17 @@ export default function TeacherDirectoryTable({
             border: '1px solid rgba(239, 68, 68, 0.25)',
             fontSize: '0.75rem',
             fontWeight: 700,
+            whiteSpace: 'nowrap',
           }}>
-            Rejected
+            ✕ Rejected
           </span>
         );
       default:
         return (
           <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '5px',
             padding: '4px 10px',
             borderRadius: '999px',
             backgroundColor: 'rgba(217, 119, 6, 0.1)',
@@ -112,8 +127,9 @@ export default function TeacherDirectoryTable({
             border: '1px solid rgba(217, 119, 6, 0.25)',
             fontSize: '0.75rem',
             fontWeight: 700,
+            whiteSpace: 'nowrap',
           }}>
-            Pending Review
+            ⏳ Pending Review
           </span>
         );
     }
@@ -163,14 +179,14 @@ export default function TeacherDirectoryTable({
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: 'rgba(255,255,255,0.02)' }}>
-              <th style={{ padding: '12px 16px' }}>Teacher / Display Name</th>
-              <th style={{ padding: '12px 16px' }}>Real Complete Name</th>
-              <th style={{ padding: '12px 16px' }}>Branch</th>
-              <th style={{ padding: '12px 16px' }}>Shift (PHT)</th>
-              <th style={{ padding: '12px 16px' }}>Contact</th>
-              <th style={{ padding: '12px 16px' }}>Dept & Type</th>
-              <th style={{ padding: '12px 16px' }}>Status</th>
-              <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
+              <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Teacher / Display Name</th>
+              <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Real Complete Name</th>
+              <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Branch</th>
+              <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Shift (PHT)</th>
+              <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Contact</th>
+              <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Dept & Type</th>
+              <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Status</th>
+              <th style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -182,61 +198,70 @@ export default function TeacherDirectoryTable({
               </tr>
             ) : (
               filteredTeachers.map((t) => (
-                <tr key={t.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                  <td style={{ padding: '12px 16px', fontWeight: 600 }}>
-                    <Link href={`/dashboard/teachers/${t.id}`} style={{ color: 'var(--primary)' }}>
+                <tr key={t.id} style={{ borderBottom: '1px solid var(--border-color)', verticalAlign: 'middle' }}>
+                  <td style={{ padding: '14px 16px', fontWeight: 600, verticalAlign: 'middle' }}>
+                    <Link href={`/dashboard/teachers/${t.id}`} style={{ color: 'var(--primary)', textDecoration: 'none' }}>
                       {t.displayName}
                     </Link>
                   </td>
-                  <td style={{ padding: '12px 16px' }}>{t.realFullName}</td>
-                  <td style={{ padding: '12px 16px' }}>
+                  <td style={{ padding: '14px 16px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>{t.realFullName}</td>
+                  <td style={{ padding: '14px 16px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                     <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
                       fontSize: '0.75rem',
                       fontWeight: 600,
-                      padding: '3px 8px',
+                      padding: '4px 9px',
                       borderRadius: 'var(--radius-sm)',
-                      background: 'rgba(0, 82, 204, 0.1)',
+                      background: 'rgba(0, 82, 204, 0.08)',
                       color: 'var(--ns-blue)',
-                      border: '1px solid rgba(0, 82, 204, 0.25)',
+                      border: '1px solid rgba(0, 82, 204, 0.2)',
                     }}>
                       📍 {t.branch || 'Atimonan'}
                     </span>
                   </td>
-                  <td style={{ padding: '12px 16px' }}>
+                  <td style={{ padding: '14px 16px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                     {t.shiftSchedule ? (
                       <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
                         fontSize: '0.75rem',
                         fontWeight: 600,
-                        padding: '3px 8px',
+                        padding: '4px 9px',
                         borderRadius: 'var(--radius-sm)',
                         background: 'rgba(16, 185, 129, 0.1)',
                         color: '#059669',
                         border: '1px solid rgba(16, 185, 129, 0.25)',
-                        whiteSpace: 'nowrap',
                       }}>
                         🕐 {t.shiftSchedule.name.split(' (')[0]} ({t.shiftSchedule.startTime}–{t.shiftSchedule.endTime})
                       </span>
                     ) : (
-                      <span style={{ fontSize: '0.75rem', color: 'var(--foreground-muted)', fontStyle: 'italic' }}>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--foreground-muted)', fontStyle: 'italic' }}>
                         Unassigned
                       </span>
                     )}
                   </td>
-                  <td style={{ padding: '12px 16px', color: 'var(--foreground-muted)' }}>{t.cellphone}</td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <span style={{ fontSize: '0.8rem', padding: '2px 6px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', marginRight: '6px' }}>
+                  <td style={{ padding: '14px 16px', color: 'var(--foreground-muted)', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                    {t.cellphone}
+                  </td>
+                  <td style={{ padding: '14px 16px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: '0.8rem', padding: '2px 6px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', marginRight: '6px', fontWeight: 600 }}>
                       {t.projectType}
                     </span>
                     <span style={{ fontSize: '0.8rem', color: 'var(--foreground-muted)' }}>
                       {t.department}
                     </span>
                   </td>
-                  <td style={{ padding: '12px 16px' }}>{getStatusBadge(t.registrationStatus)}</td>
-                  <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                  <td style={{ padding: '14px 16px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                    {getStatusBadge(t.registrationStatus)}
+                  </td>
+                  <td style={{ padding: '14px 16px', textAlign: 'right', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                     <Link
                       href={`/dashboard/teachers/${t.id}`}
                       className="btn btn-secondary"
-                      style={{ padding: '4px 10px', fontSize: '0.8rem' }}
+                      style={{ padding: '5px 12px', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
                     >
                       {t.registrationStatus === 'PENDING' ? 'Review Application →' : 'View Profile'}
                     </Link>
