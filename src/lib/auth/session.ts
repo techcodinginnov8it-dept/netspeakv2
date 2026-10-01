@@ -86,32 +86,34 @@ export async function invalidateSession(): Promise<void> {
  * Retrieve the currently authenticated user from the active session
  */
 export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
-  if (!token) {
-    return null;
-  }
+    if (!token) {
+      return null;
+    }
 
-  const session = await withRetry(() =>
-    prisma.session.findUnique({
-      where: { token },
-      include: {
-        user: {
-          include: {
-            staffProfile: {
-              select: { branch: true },
-            },
-            teacherProfile: {
-              select: { branch: true },
-            },
-            userRoles: {
-              include: {
-                role: {
-                  include: {
-                    rolePermissions: {
-                      include: {
-                        permission: true,
+    const session = await withRetry(() =>
+      prisma.session.findUnique({
+        where: { token },
+        include: {
+          user: {
+            include: {
+              staffProfile: {
+                select: { branch: true },
+              },
+              teacherProfile: {
+                select: { branch: true },
+              },
+              userRoles: {
+                include: {
+                  role: {
+                    include: {
+                      rolePermissions: {
+                        include: {
+                          permission: true,
+                        },
                       },
                     },
                   },
@@ -120,52 +122,57 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
             },
           },
         },
-      },
-    })
-  );
+      })
+    );
 
-  if (!session) {
-    return null;
-  }
-
-  // Check if session has expired
-  if (session.expiresAt < new Date()) {
-    try {
-      await prisma.session.delete({ where: { id: session.id } });
-    } catch {
-      // Ignore cleanup error
+    if (!session) {
+      return null;
     }
-    cookieStore.delete(SESSION_COOKIE_NAME);
-    return null;
-  }
 
-  const { user } = session;
-
-  // Check if user is active
-  if (!user.isActive) {
-    return null;
-  }
-
-  const roles: string[] = [];
-  const permissionsSet = new Set<string>();
-
-  for (const ur of user.userRoles) {
-    roles.push(ur.role.name);
-    for (const rp of ur.role.rolePermissions) {
-      permissionsSet.add(rp.permission.name);
+    // Check if session has expired
+    if (session.expiresAt < new Date()) {
+      try {
+        await prisma.session.delete({ where: { id: session.id } });
+      } catch {
+        // Ignore cleanup error
+      }
+      cookieStore.delete(SESSION_COOKIE_NAME);
+      return null;
     }
+
+    const { user } = session;
+
+    // Check if user is active
+    if (!user.isActive) {
+      return null;
+    }
+
+    const roles: string[] = [];
+    const permissionsSet = new Set<string>();
+
+    for (const ur of user.userRoles) {
+      roles.push(ur.role.name);
+      for (const rp of ur.role.rolePermissions) {
+        permissionsSet.add(rp.permission.name);
+      }
+    }
+
+    const userBranch = user.staffProfile?.branch || user.teacherProfile?.branch || null;
+
+    return {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      fullName: user.fullName,
+      isActive: user.isActive,
+      roles,
+      permissions: Array.from(permissionsSet),
+      branch: userBranch,
+    };
+  } catch (err) {
+    // In production, a DB connection failure must not crash Server Components.
+    // Log it server-side and fall back to "not authenticated".
+    console.error('[getCurrentUser] Failed to retrieve session:', err);
+    return null;
   }
-
-  const userBranch = user.staffProfile?.branch || user.teacherProfile?.branch || null;
-
-  return {
-    id: user.id,
-    email: user.email,
-    username: user.username,
-    fullName: user.fullName,
-    isActive: user.isActive,
-    roles,
-    permissions: Array.from(permissionsSet),
-    branch: userBranch,
-  };
 }
