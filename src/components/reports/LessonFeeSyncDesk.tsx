@@ -136,7 +136,7 @@ export default function LessonFeeSyncDesk({ knownTeachers }: Props) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: '0 0 0.25rem', color: 'var(--text-primary)' }}>
-              Lesson Fee Cut-Off Sync Desk (§5, Phase 4.2)
+              Lesson Fee Cut-Off Sync Desk (Phase 4.2)
             </h3>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
               Reconcile platform lesson audit logs and external teaching portal payouts with teacher roster records.

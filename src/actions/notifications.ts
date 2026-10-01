@@ -74,7 +74,7 @@ export async function markAllNotificationsAsReadAction() {
 }
 
 /**
- * Centralized Notification Dispatcher (§36)
+ * Centralized Notification Dispatcher
  * Emits in-app alerts to a specific user, role, or broadcast group
  */
 const dispatchNotificationSchema = z.object({

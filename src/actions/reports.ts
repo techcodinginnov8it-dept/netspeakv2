@@ -56,7 +56,7 @@ export interface CutOffReportData {
 }
 
 /**
- * Generates consolidated Teacher Cut-Off / Operational Report (§22, §29-30)
+ * Generates consolidated Teacher Cut-Off / Operational Report
  */
 export async function getCutOffReportAction(params: CutOffFilterParams): Promise<{ success: boolean; data?: CutOffReportData; error?: string }> {
   try {
@@ -147,7 +147,7 @@ export async function getCutOffReportAction(params: CutOffFilterParams): Promise
         totalCancellations += output.absentClasses || 0;
       }
 
-      // Calculate Cash Loan Amortization deduction for this cut-off (§4.2)
+      // Calculate Cash Loan Amortization deduction for this cut-off
       let loanDeductionPhp = 0;
       for (const loan of t.cashLoanRequests) {
         loanDeductionPhp += loan.deductionPerCycle || 0;
@@ -227,7 +227,7 @@ export interface StaffOperationsReportRow {
 }
 
 /**
- * Generates Admin & IT Staff Operations and Checklist Compliance Report (§31)
+ * Generates Admin & IT Staff Operations and Checklist Compliance Report
  */
 export async function getStaffOperationsReportAction(params: { startDate: string; endDate: string; roleType?: string }): Promise<{ success: boolean; data?: StaffOperationsReportRow[]; error?: string }> {
   try {

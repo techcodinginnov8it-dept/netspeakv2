@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { RequirementStatus, OnboardingStatus } from '@prisma/client';
 
-// Standard 18 requirements per §34
+// Standard 18 requirements per 
 const STANDARD_REQUIREMENTS = [
   { key: 'BANK_ACCOUNT',          label: 'Bank Account' },
   { key: 'CONTRACT_SIGNING',      label: 'Contract Signing' },
@@ -133,7 +133,7 @@ export async function updateRequirementStatusAction(
   }
 }
 
-// ── Grant slot eligibility (Admin verification step per §34) ─────────────────
+// ── Grant slot eligibility (Admin verification step per ) ─────────────────
 
 export async function verifyAndGrantSlotEligibilityAction(
   recordId: string,
@@ -145,7 +145,7 @@ export async function verifyAndGrantSlotEligibilityAction(
     const record = await prisma.newHireRecord.findUnique({ where: { id: recordId } });
     if (!record) return { error: 'Onboarding record not found.' };
 
-    // Enforce 3-day minimum window per §34
+    // Enforce 3-day minimum window per 
     const startDate = record.startDate;
     const threeDaysLater = new Date(startDate);
     threeDaysLater.setDate(threeDaysLater.getDate() + 3);

@@ -28,7 +28,7 @@ function getFirstAndThirdSaturdays(year: number, monthIndex: number): Date[] {
 }
 
 /**
- * Generates automated schedule slots for simulations (§32)
+ * Generates automated schedule slots for simulations
  */
 export async function generateUpcomingSimulationSlotsAction() {
   await requirePermission(PERMISSIONS.SIMULATIONS_MANAGE);
@@ -91,7 +91,7 @@ export async function generateUpcomingSimulationSlotsAction() {
 }
 
 /**
- * Create a new custom simulation drill (§32)
+ * Create a new custom simulation drill
  */
 const createDrillSchema = z.object({
   title: z.string().min(3),
@@ -121,7 +121,7 @@ export async function createSimulationDrillAction(data: z.infer<typeof createDri
 }
 
 /**
- * Record drill results, completion, issues and remarks (§32)
+ * Record drill results, completion, issues and remarks
  */
 const recordDrillResultSchema = z.object({
   id: z.string().min(1),

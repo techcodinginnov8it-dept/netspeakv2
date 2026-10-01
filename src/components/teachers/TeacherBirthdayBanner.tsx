@@ -127,7 +127,7 @@ export default function TeacherBirthdayBanner({
         }}>
           <div className="card" style={{ width: '100%', maxWidth: 480, padding: '28px', margin: '20px' }}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '6px' }}>
-              🎁 Assign Birthday Incentive (§5)
+              🎁 Assign Birthday Incentive
             </h3>
             <p style={{ fontSize: '0.85rem', color: 'var(--foreground-muted)', marginBottom: '20px' }}>
               Assigning reward for <strong>{selectedTeacher.realFullName}</strong> (&quot;{selectedTeacher.displayName}&quot;)

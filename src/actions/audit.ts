@@ -29,7 +29,7 @@ export interface AuditLogFilterParams {
 }
 
 /**
- * Fetches paginated audit logs (§42)
+ * Fetches paginated audit logs
  */
 export async function getAuditLogsAction(params?: AuditLogFilterParams): Promise<{
   success: boolean;

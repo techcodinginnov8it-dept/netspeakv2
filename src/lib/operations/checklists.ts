@@ -1,6 +1,6 @@
 /**
  * Operational Checklist Definitions for Admin and IT Roles
- * Per Netspeak-System-Specification.md §9.2, §12, §28.1, §28.2, §29
+ * Per Netspeak-System-Specification.md , , , , 
  */
 
 export interface ChecklistItemDef {

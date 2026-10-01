@@ -35,7 +35,7 @@ export async function getOrCreateStaffProfileAction() {
 }
 
 /**
- * Record Staff Time In (§9.1, §28.1)
+ * Record Staff Time In
  */
 export async function recordStaffTimeInAction() {
   await requirePermission(PERMISSIONS.OPERATIONS_RECORD);
@@ -92,7 +92,7 @@ export async function recordStaffTimeInAction() {
 }
 
 /**
- * Submit or update checklist items (§9.2, §28.1, §29)
+ * Submit or update checklist items
  */
 const submitChecklistSchema = z.object({
   attendanceId: z.string().min(1),
@@ -174,7 +174,7 @@ export async function submitStaffChecklistAction(data: z.infer<typeof submitChec
 }
 
 /**
- * Record Staff Time Out (§9.2, §28.2)
+ * Record Staff Time Out
  * STRICT LOCKOUT: Time out is rejected if end-of-shift checklist is not completed!
  */
 export async function recordStaffTimeOutAction(attendanceId: string) {
@@ -197,7 +197,7 @@ export async function recordStaffTimeOutAction(attendanceId: string) {
     return { success: false, error: 'Time Out has already been recorded for today.' };
   }
 
-  // §9.2 & §28.2 Strict requirement: Checklist MUST be complete before logout
+  //  &  Strict requirement: Checklist MUST be complete before logout
   if (!attendance.isChecklistComplete) {
     const roleTitle = attendance.staffProfile.roleType === 'IT' ? 'IT End-of-Shift Checklist' : 'Admin End-of-Shift Checklist';
     return {
@@ -221,7 +221,7 @@ export async function recordStaffTimeOutAction(attendanceId: string) {
 }
 
 /**
- * Reconcile Staff Attendance / Record Absence Reason (§10, §30)
+ * Reconcile Staff Attendance / Record Absence Reason
  */
 export async function reconcileStaffAttendanceAction(
   attendanceId: string,
@@ -245,7 +245,7 @@ export async function reconcileStaffAttendanceAction(
 }
 
 /**
- * Generates and dispatches Daily Executive Staff Operations Summary to Operations Managers (§XXVII)
+ * Generates and dispatches Daily Executive Staff Operations Summary to Operations Managers
  * Tallies Admin and IT attendance/checklist compliance for the current day.
  * Intended to run at end-of-day via the scheduled cron evaluator.
  */

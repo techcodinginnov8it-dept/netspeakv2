@@ -25,7 +25,7 @@ export type TodayBirthdayTeacher = {
 };
 
 /**
- * Get active teachers whose birthday is today in Manila time (§5)
+ * Get active teachers whose birthday is today in Manila time
  */
 export async function getTodayBirthdaysAction(): Promise<TodayBirthdayTeacher[]> {
   const user = await requireAuth();
@@ -85,7 +85,7 @@ export async function getTodayBirthdaysAction(): Promise<TodayBirthdayTeacher[]>
 }
 
 /**
- * Grant a Birthday Incentive to a teacher (§5)
+ * Grant a Birthday Incentive to a teacher
  * Direct action for Managers and Center Admins: Cash Voucher / In-Kind Token
  */
 export async function grantTeacherIncentiveAction(

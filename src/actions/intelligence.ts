@@ -20,7 +20,7 @@ export type LowBookingTeacher = {
 };
 
 /**
- * Low-Booking Intelligence (§5, §XXXI)
+ * Low-Booking Intelligence
  * Scans the last 5 days of DailyOutputs for active teachers:
  * - 1 Day Under Target: TPCAP Profile Upgrade recommended
  * - 3 Consecutive Days Under Target: Marked URGENT for manager intervention

@@ -57,7 +57,7 @@ export type ManagementDashboardData = {
     availableWorkstations: number;
     maintenanceWorkstations: number;
   };
-  // Low-Booking Intelligence (§5, §XXXI)
+  // Low-Booking Intelligence
   lowBookingTeachers?: {
     teacherId: string;
     realFullName: string;
@@ -178,7 +178,7 @@ export default function ManagementDashboard({ data }: { data: ManagementDashboar
           { id: 'RESIGNATIONS', label: '🚪 Resignations & Attrition' },
           { id: 'ONBOARDING', label: '🎓 New Hire Pipeline' },
           { id: 'CONCERNS', label: '⚠️ Concerns & Tickets' },
-          { id: 'LOW_BOOKING', label: '📉 Low-Booking Intelligence (§5)' },
+          { id: 'LOW_BOOKING', label: '📉 Low-Booking Intelligence' },
         ].map(tab => (
           <button
             key={tab.id}
@@ -521,14 +521,14 @@ export default function ManagementDashboard({ data }: { data: ManagementDashboar
         </div>
       )}
 
-      {/* Panel 7: Low-Booking Intelligence (§5, §XXXI) */}
+      {/* Panel 7: Low-Booking Intelligence */}
       {activeTab === 'LOW_BOOKING' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: '1.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <span>📉</span> Low-Booking Consecutive Intelligence Table (§5, §XXXI)
+                  <span>📉</span> Low-Booking Consecutive Intelligence Table
                 </h3>
                 <p style={{ margin: '0.35rem 0 0', fontSize: '0.85rem', color: 'var(--text-dim)' }}>
                   Automated streak detection monitoring low booking rates across 1-day, 3-day (Urgent), and 5-day (Critical) thresholds.
@@ -552,7 +552,7 @@ export default function ManagementDashboard({ data }: { data: ManagementDashboar
                       <th style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>Last Output (Booked/Open)</th>
                       <th style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>Avg Booking %</th>
                       <th style={{ padding: '0.85rem 1rem' }}>Severity Tier</th>
-                      <th style={{ padding: '0.85rem 1rem' }}>Mandated Action (§5)</th>
+                      <th style={{ padding: '0.85rem 1rem' }}>Mandated Action</th>
                     </tr>
                   </thead>
                   <tbody>

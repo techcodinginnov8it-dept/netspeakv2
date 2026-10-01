@@ -104,7 +104,7 @@ export default function ITSchedulesClient({ weeklySubmissions, monthlySubmission
           💻 IT Weekly &amp; Monthly Checklist Desk
         </h1>
         <p style={{ color: 'var(--text-dim)', marginTop: '0.35rem', fontSize: '0.95rem' }}>
-          Submit and track IT staff periodic routine compliance (§XXV) — weekly backup, maintenance &amp; monthly patching routines.
+          Submit and track IT staff periodic routine compliance — weekly backup, maintenance &amp; monthly patching routines.
         </p>
       </div>
 

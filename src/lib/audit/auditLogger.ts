@@ -13,7 +13,7 @@ export interface AuditEventParams {
 }
 
 /**
- * Records an audit trail log in the database (§42).
+ * Records an audit trail log in the database.
  * Fails gracefully without breaking callers if database insert fails.
  */
 export async function recordAuditLog(params: AuditEventParams): Promise<void> {

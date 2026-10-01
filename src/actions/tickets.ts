@@ -14,7 +14,7 @@ import {
 import { getTicketEvidenceImageUrl, parseUploadedImage, uploadTicketEvidenceImage } from '@/lib/supabase/images';
 
 // ----------------------------------------------------
-// Teacher Concerns Schemas & Actions (Â§20)
+// Teacher Concerns Schemas & Actions
 // ----------------------------------------------------
 
 const TeacherConcernSchema = z.object({
@@ -32,7 +32,7 @@ export type TicketActionResult = {
 };
 
 /**
- * Teacher submits a concern ticket (Â§20)
+ * Teacher submits a concern ticket
  */
 export async function submitTeacherConcernAction(
   data: z.infer<typeof TeacherConcernSchema>
@@ -75,7 +75,7 @@ export async function submitTeacherConcernAction(
 }
 
 /**
- * Operations Manager updates concern ticket lifecycle status & assignee (Â§20)
+ * Operations Manager updates concern ticket lifecycle status & assignee
  * Cycle: SUBMITTED -> ASSIGNED -> UNDER_REVIEW -> ACTION_TAKEN -> RESOLVED -> CLOSED
  */
 export async function updateTeacherConcernStatusAction(
@@ -112,7 +112,7 @@ export async function updateTeacherConcernStatusAction(
 }
 
 // ----------------------------------------------------
-// Incident Report Tickets Schemas & Actions (Â§19)
+// Incident Report Tickets Schemas & Actions
 // ----------------------------------------------------
 
 const IncidentReportSchema = z.object({
@@ -128,7 +128,7 @@ const IncidentReportSchema = z.object({
 });
 
 /**
- * Report a formal incident (Â§19)
+ * Report a formal incident
  */
 export async function reportIncidentAction(
   data: z.infer<typeof IncidentReportSchema>
@@ -184,7 +184,7 @@ export async function reportIncidentAction(
 }
 
 /**
- * Update incident investigation & resolution status (Â§19)
+ * Update incident investigation & resolution status
  */
 export async function updateIncidentStatusAction(
   ticketId: string,

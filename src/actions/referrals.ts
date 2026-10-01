@@ -32,7 +32,7 @@ export type ReferralRecord = {
 };
 
 /**
- * Fetch all referral records across the system or branch-scoped (§XXI)
+ * Fetch all referral records across the system or branch-scoped
  */
 export async function getReferralRecordsAction() {
   const user = await requireAuth();
@@ -63,7 +63,7 @@ export async function getReferralRecordsAction() {
 }
 
 /**
- * Update referral fee status and eligibility notes (§XXI)
+ * Update referral fee status and eligibility notes
  * Gated by teachers:review or management
  */
 export async function updateReferralStatusAction(

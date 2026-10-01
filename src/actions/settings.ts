@@ -15,7 +15,7 @@ export interface SystemSettingItem {
 }
 
 /**
- * Fetches all system configuration settings (§4, §27)
+ * Fetches all system configuration settings
  */
 export async function getSystemSettingsAction(): Promise<{ success: boolean; settings?: SystemSettingItem[]; error?: string }> {
   try {
@@ -42,7 +42,7 @@ export async function getSystemSettingsAction(): Promise<{ success: boolean; set
 }
 
 /**
- * Updates a specific system configuration setting (§4, §27, §42)
+ * Updates a specific system configuration setting
  */
 export async function updateSystemSettingAction(params: {
   key: string;

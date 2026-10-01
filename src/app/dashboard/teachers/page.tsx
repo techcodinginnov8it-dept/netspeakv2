@@ -78,7 +78,7 @@ export default async function TeachersPage({ searchParams }: PageProps) {
             Teacher Management
           </h1>
           <p style={{ color: 'var(--foreground-muted)', fontSize: '0.95rem' }}>
-            Review incoming registrations, perform approval workflows, and monitor teacher referrals (§XXI).
+            Review incoming registrations, perform approval workflows, and monitor teacher referrals.
           </p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
@@ -102,7 +102,7 @@ export default async function TeachersPage({ searchParams }: PageProps) {
           className={`btn ${currentTab === 'referrals' ? 'btn-primary' : 'btn-secondary'}`}
           style={{ fontSize: '0.9rem', padding: '8px 18px' }}
         >
-          🤝 Referral Monitoring (§XXI) ({referralRecords.length})
+          🤝 Referral Monitoring ({referralRecords.length})
         </Link>
       </div>
 

@@ -273,7 +273,7 @@ export async function completeExitInterviewAction(
 
 /**
  * Complete IT Clearance (PC reformat, access revocation)
- * §27: Automatically transitions the resigned teacher's workstation to PENDING_REFORMAT
+ * : Automatically transitions the resigned teacher's workstation to PENDING_REFORMAT
  */
 export async function completeITClearanceAction(
   resignationId: string,
@@ -365,7 +365,7 @@ export async function deactivateResignedTeacherAction(
       });
     }
 
-    // Mark resignation as DEACTIVATED and record TPCAP notification (§XVIII)
+    // Mark resignation as DEACTIVATED and record TPCAP notification
     const now = new Date();
     await prisma.teacherResignation.update({
       where: { id: resignationId },
@@ -378,7 +378,7 @@ export async function deactivateResignedTeacherAction(
       },
     });
 
-    // Notify Operations Managers and TPCAP coordinator (§XVIII)
+    // Notify Operations Managers and TPCAP coordinator
     const opsManagers = await prisma.user.findMany({
       where: {
         isActive: true,
@@ -396,7 +396,7 @@ export async function deactivateResignedTeacherAction(
         data: {
           userId: om.id,
           title: `TPCAP Action: Teacher Resigned / Deactivated`,
-          message: `Offboarding complete for ${resignation.fullName} (${resignation.branch} - ${resignation.project}). Workstation reformatted and teacher removed from active TPCAP rosters (§XVIII).`,
+          message: `Offboarding complete for ${resignation.fullName} (${resignation.branch} - ${resignation.project}). Workstation reformatted and teacher removed from active TPCAP rosters.`,
           type: 'RESIGNATION_ALERT',
           priority: 'NORMAL',
           link: '/dashboard/resignation/monitoring',

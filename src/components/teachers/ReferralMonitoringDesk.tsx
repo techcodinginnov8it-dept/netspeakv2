@@ -295,7 +295,7 @@ export default function ReferralMonitoringDesk({
               </div>
 
               <div className="form-group">
-                <label style={{ fontSize: '0.9rem', fontWeight: 600 }}>Referral Fee Status (§XXI)</label>
+                <label style={{ fontSize: '0.9rem', fontWeight: 600 }}>Referral Fee Status</label>
                 <select
                   className="input"
                   value={modalFeeStatus}

@@ -570,7 +570,7 @@ export default function CutOffReportsView({
               cursor: 'pointer',
             }}
           >
-            💰 Lesson Fee Cut-Off Sync (§5)
+            💰 Lesson Fee Cut-Off Sync
           </button>
         </div>
 
@@ -814,7 +814,7 @@ export default function CutOffReportsView({
         </div>
       )}
 
-      {/* Tab Content 3: Lesson Fee Cut-Off Sync Desk (§5, Phase 4.2) */}
+      {/* Tab Content 3: Lesson Fee Cut-Off Sync Desk (Phase 4.2) */}
       {activeTab === 'LESSON_SYNC' && (
         <LessonFeeSyncDesk
           knownTeachers={(reportData?.rows || []).map((r) => ({

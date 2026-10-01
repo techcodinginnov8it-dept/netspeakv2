@@ -345,7 +345,7 @@ export default async function DashboardPage() {
   return (
     <div style={{ maxWidth: '1160px', margin: '0 auto', animation: 'fadeInUp 0.35s ease' }}>
 
-      {/* ── Birthday Recognition Banner (§5) ── */}
+      {/* ── Birthday Recognition Banner ── */}
       <TeacherBirthdayBanner
         teachers={todayBirthdays}
         canGrantIncentive={canGrantIncentives}

@@ -221,7 +221,7 @@ export default function AppSidebar({
         <SectionLabel label="Core" />
         <NavItem href="/dashboard" icon="🏠" label="Dashboard" accent="blue" />
         {canRecordOperations && <NavItem href="/dashboard/operations" icon="⚡" label="Operations Workstation" accent="blue" />}
-        {(canRecordOperations || canManageOperations) && <NavItem href="/dashboard/operations/it-schedules" icon="🗓️" label="IT Schedules (§XXV)" accent="blue" />}
+        {(canRecordOperations || canManageOperations) && <NavItem href="/dashboard/operations/it-schedules" icon="🗓️" label="IT Schedules" accent="blue" />}
         {canManageOperations && <NavItem href="/dashboard/operations/attendance" icon="👥" label="Staff Attendance" accent="blue" />}
         {canViewManagementDashboard && <NavItem href="/dashboard/management" icon="📊" label="Management Dashboard" accent="violet" />}
 

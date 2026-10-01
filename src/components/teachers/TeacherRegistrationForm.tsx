@@ -311,7 +311,7 @@ export default function TeacherRegistrationForm() {
         </div>
       </div>
 
-      {/* Section 4: Referral Information (§XXI) */}
+      {/* Section 4: Referral Information */}
       <div className="card" style={{ padding: '28px', borderLeft: '4px solid var(--ns-blue)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
           <span style={{
@@ -326,7 +326,7 @@ export default function TeacherRegistrationForm() {
             fontSize: '0.85rem',
             fontWeight: 700
           }}>4</span>
-          <h3 style={{ fontSize: '1.2rem', fontWeight: 600 }}>Teacher Referral Program (§XXI)</h3>
+          <h3 style={{ fontSize: '1.2rem', fontWeight: 600 }}>Teacher Referral Program</h3>
         </div>
 
         <p style={{ fontSize: '0.9rem', color: 'var(--foreground-muted)', marginBottom: '16px', lineHeight: 1.5 }}>
@@ -365,7 +365,7 @@ export default function TeacherRegistrationForm() {
               placeholder="e.g. Teacher Maria Santos"
             />
             <span style={{ fontSize: '0.8rem', color: '#B45309', display: 'block', marginTop: '6px' }}>
-              ⚠️ <strong>SRS Compliance Notice:</strong> Per company policy (§XXI), if the referring teacher is not declared during initial registration, they will have no right to claim the referral fee retroactively.
+              ⚠️ <strong>SRS Compliance Notice:</strong> Per company policy, if the referring teacher is not declared during initial registration, they will have no right to claim the referral fee retroactively.
             </span>
           </div>
         </div>

@@ -18,7 +18,7 @@ export async function evaluateScheduledAlertsInternal() {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const generatedAlerts: string[] = [];
 
-  // 1. Scan Teachers without Logout for today if shift ended (§17, §44)
+  // 1. Scan Teachers without Logout for today if shift ended
   const openAttendances = await prisma.teacherAttendance.findMany({
     where: {
       date: today,
@@ -59,7 +59,7 @@ export async function evaluateScheduledAlertsInternal() {
     }
   }
 
-  // 2. Scan Staff (Admin / IT) with Incomplete Checklists past shift hour (§9.2, §28.2, §44)
+  // 2. Scan Staff (Admin / IT) with Incomplete Checklists past shift hour
   const staffOpen = await prisma.staffAttendance.findMany({
     where: {
       date: today,
@@ -97,7 +97,7 @@ export async function evaluateScheduledAlertsInternal() {
     }
   }
 
-  // 3. Scan Upcoming Simulation Drills within 3 days (§32, §44)
+  // 3. Scan Upcoming Simulation Drills within 3 days
   const threeDaysFromNow = new Date();
   threeDaysFromNow.setDate(now.getDate() + 3);
 
@@ -153,13 +153,13 @@ export async function evaluateScheduledAlertsInternal() {
     }
   }
 
-  // 4. D-006 Fix: Auto-approve ETO requests past 30-minute review window (§16, §44)
+  // 4. D-006 Fix: Auto-approve ETO requests past 30-minute review window
   const etoResult = await checkEarlyTimeOffAutoApprovalsAction();
   if (etoResult.autoApprovedCount > 0) {
     generatedAlerts.push(`Auto-approved ${etoResult.autoApprovedCount} Early Time-Off request(s) past review window`);
   }
 
-  // 5. D-005 Fix: NO_LOGIN detection — teachers with no Time-In past T+15 of shift start (§44)
+  // 5. D-005 Fix: NO_LOGIN detection — teachers with no Time-In past T+15 of shift start
   const activeTeachers = await prisma.teacherProfile.findMany({
     where: { registrationStatus: 'APPROVED', userId: { not: null } },
     include: {
@@ -205,7 +205,7 @@ export async function evaluateScheduledAlertsInternal() {
     }
   }
 
-  // 6. Slot Opening Compliance & 3-Day Reminders (§XIX)
+  // 6. Slot Opening Compliance & 3-Day Reminders
   // Teachers must open slots 1 month in advance. Send reminder 3 days before deadline.
   const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   const targetMonthStr = nextMonthDate.toLocaleString('default', { month: 'long', year: 'numeric' });
@@ -239,7 +239,7 @@ export async function evaluateScheduledAlertsInternal() {
             data: {
               userId: teacher.user.id,
               title: `Slot Opening Deadline: ${targetMonthStr}`,
-              message: `Urgent (§XIX): You must open your required teaching slots for ${targetMonthStr} before ${deadlineForNextMonth.toLocaleDateString()}. Please update your schedule immediately.`,
+              message: `Urgent: You must open your required teaching slots for ${targetMonthStr} before ${deadlineForNextMonth.toLocaleDateString()}. Please update your schedule immediately.`,
               type: NotificationType.SLOT_DEADLINE,
               priority: NotificationPriority.URGENT,
               link: '/dashboard/output',
@@ -251,7 +251,7 @@ export async function evaluateScheduledAlertsInternal() {
     }
   }
 
-  // 7. Daily Executive Staff Operations Summary (§XXVII)
+  // 7. Daily Executive Staff Operations Summary
   // Fire after 18:00 PHT (end of standard admin shift) once per day
   const phtHour = (now.getUTCHours() + 8) % 24; // Convert UTC to PHT UTC+8
   if (phtHour >= 18) {
