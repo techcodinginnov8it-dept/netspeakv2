@@ -182,6 +182,7 @@ export default function ManagementDashboard({ data }: { data: ManagementDashboar
         ].map(tab => (
           <button
             key={tab.id}
+            type="button"
             onClick={() => setActiveTab(tab.id as PanelTab)}
             style={{
               background: activeTab === tab.id ? 'var(--ns-blue)' : 'transparent',
