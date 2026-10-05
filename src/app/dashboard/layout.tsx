@@ -92,7 +92,8 @@ export default async function DashboardLayout({
           padding: '1.75rem 2rem',
           overflowY: 'auto',
           background: 'var(--bg-page)',
-          minHeight: 'calc(100vh - 64px)',
+          minHeight: 'calc(100vh - 62px)',
+          backgroundImage: 'radial-gradient(at 0% 0%, hsla(228, 80%, 96%, 0.6) 0, transparent 60%), radial-gradient(at 100% 100%, hsla(155, 80%, 96%, 0.4) 0, transparent 60%)',
         }}>
           {children}
         </main>

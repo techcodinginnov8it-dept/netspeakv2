@@ -40,39 +40,42 @@ export default function TeacherBirthdayBanner({
   return (
     <>
       <div style={{
-        background: 'linear-gradient(135deg, rgba(244, 196, 48, 0.15) 0%, rgba(255, 235, 153, 0.25) 100%)',
-        border: '1px solid rgba(244, 196, 48, 0.5)',
-        borderRadius: 'var(--radius)',
-        padding: '16px 20px',
+        background: 'linear-gradient(135deg, rgba(245, 166, 35, 0.14) 0%, rgba(255, 236, 153, 0.22) 100%)',
+        border: '1px solid rgba(245, 166, 35, 0.45)',
+        borderLeft: '4px solid #f5a623',
+        borderRadius: 'var(--radius-lg)',
+        padding: '14px 20px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         flexWrap: 'wrap',
         gap: '14px',
-        boxShadow: '0 2px 10px rgba(244, 196, 48, 0.1)',
-        marginBottom: '20px',
+        boxShadow: '0 4px 16px rgba(245, 166, 35, 0.12)',
+        marginBottom: '1.5rem',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <div style={{
-            fontSize: '1.8rem',
-            background: 'rgba(244, 196, 48, 0.25)',
+            fontSize: '1.7rem',
+            background: 'linear-gradient(135deg, rgba(245,166,35,0.25) 0%, rgba(255,236,153,0.35) 100%)',
+            border: '1.5px solid rgba(245,166,35,0.4)',
             width: 46,
             height: 46,
             borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            flexShrink: 0,
           }}>
             🎂
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: '1rem', color: '#854D0E', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#854D0E', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-heading)' }}>
               <span>Happy Birthday! Today&apos;s Celebrants:</span>
-              <span className="badge" style={{ backgroundColor: '#F4C430', color: '#000', fontWeight: 700 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', padding: '1px 8px', borderRadius: '999px', background: '#f5a623', color: '#fff', fontSize: '0.7rem', fontWeight: 700 }}>
                 {teachers.length} Teacher{teachers.length > 1 ? 's' : ''}
               </span>
             </div>
-            <div style={{ fontSize: '0.9rem', color: '#713F12', marginTop: '2px' }}>
+            <div style={{ fontSize: '0.875rem', color: '#713F12', marginTop: '3px' }}>
               {teachers.map((t, idx) => (
                 <span key={t.id}>
                   <strong>{t.realFullName}</strong> (&quot;{t.displayName}&quot; — {t.branch || 'Atimonan'})

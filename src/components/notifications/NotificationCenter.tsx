@@ -135,41 +135,36 @@ export default function NotificationCenter({ notifications, canBroadcast, canRun
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           {canRunJobs && (
             <button
               onClick={handleRunJobs}
               disabled={isPending}
+              className="btn btn-secondary btn-sm"
               style={{
-                padding: '0.6rem 1rem',
-                borderRadius: 'var(--radius-sm)',
-                background: 'var(--bg-surface)',
-                border: '1px solid var(--border-color)',
-                color: 'var(--text-primary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
                 fontWeight: 600,
-                fontSize: '0.85rem',
-                cursor: 'pointer',
               }}
             >
-              ⚙️ Run Alerts Evaluation
+              <span>⚙️</span> Run Alerts Evaluation
             </button>
           )}
 
           {canBroadcast && (
             <button
               onClick={() => setIsBroadcastOpen(true)}
+              className="btn btn-primary btn-sm"
               style={{
-                padding: '0.6rem 1.25rem',
-                borderRadius: 'var(--radius-sm)',
-                background: 'var(--accent)',
-                border: 'none',
-                color: '#fff',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
                 fontWeight: 600,
-                fontSize: '0.85rem',
-                cursor: 'pointer',
+                boxShadow: 'var(--shadow-btn)',
               }}
             >
-              📢 Create Broadcast Alert
+              <span>📢</span> Create Broadcast Alert
             </button>
           )}
         </div>
@@ -205,18 +200,30 @@ export default function NotificationCenter({ notifications, canBroadcast, canRun
 
       {/* Filter / Actions Bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div
+          style={{
+            display: 'inline-flex',
+            padding: '3px',
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-light)',
+            borderRadius: 'var(--radius-md)',
+            boxShadow: 'var(--shadow-xs)',
+            gap: '4px',
+          }}
+        >
           <button
             onClick={() => setFilter('ALL')}
             style={{
-              padding: '0.4rem 1rem',
+              padding: '0.45rem 1rem',
               borderRadius: 'var(--radius-sm)',
-              background: filter === 'ALL' ? 'var(--accent)' : 'var(--bg-card)',
-              color: filter === 'ALL' ? '#fff' : 'var(--text-muted)',
-              border: '1px solid var(--border-color)',
+              background: filter === 'ALL' ? 'var(--ns-blue)' : 'transparent',
+              color: filter === 'ALL' ? '#ffffff' : 'var(--text-muted)',
+              border: 'none',
               fontWeight: 600,
               fontSize: '0.85rem',
               cursor: 'pointer',
+              transition: 'var(--transition-fast)',
+              boxShadow: filter === 'ALL' ? 'var(--shadow-sm)' : 'none',
             }}
           >
             All ({items.length})
@@ -224,14 +231,16 @@ export default function NotificationCenter({ notifications, canBroadcast, canRun
           <button
             onClick={() => setFilter('UNREAD')}
             style={{
-              padding: '0.4rem 1rem',
+              padding: '0.45rem 1rem',
               borderRadius: 'var(--radius-sm)',
-              background: filter === 'UNREAD' ? 'var(--accent)' : 'var(--bg-card)',
-              color: filter === 'UNREAD' ? '#fff' : 'var(--text-muted)',
-              border: '1px solid var(--border-color)',
+              background: filter === 'UNREAD' ? 'var(--ns-blue)' : 'transparent',
+              color: filter === 'UNREAD' ? '#ffffff' : 'var(--text-muted)',
+              border: 'none',
               fontWeight: 600,
               fontSize: '0.85rem',
               cursor: 'pointer',
+              transition: 'var(--transition-fast)',
+              boxShadow: filter === 'UNREAD' ? 'var(--shadow-sm)' : 'none',
             }}
           >
             Unread ({items.filter((n) => !n.isRead).length})
@@ -245,10 +254,16 @@ export default function NotificationCenter({ notifications, canBroadcast, canRun
             style={{
               background: 'none',
               border: 'none',
-              color: 'var(--accent)',
+              color: 'var(--ns-blue)',
               fontSize: '0.85rem',
               cursor: 'pointer',
               fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              padding: '0.4rem 0.75rem',
+              borderRadius: 'var(--radius-sm)',
+              transition: 'var(--transition-fast)',
             }}
           >
             ✓ Mark all as read

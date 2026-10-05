@@ -23,7 +23,7 @@ export default async function LoginPage() {
       {/* LEFT PANEL — Brand visual */}
       <div style={{
         flex: '1 1 55%',
-        background: 'var(--grad-brand)',
+        background: 'linear-gradient(135deg, #0a2970 0%, #1240a8 35%, #1a56db 65%, #0ea579 100%)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -66,16 +66,16 @@ export default async function LoginPage() {
 
         {/* Logo */}
         <div style={{
-          width: '88px',
-          height: '88px',
-          borderRadius: '24px',
+          width: '90px',
+          height: '90px',
+          borderRadius: '22px',
           background: '#FFFFFF',
           padding: '8px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           marginBottom: '2rem',
-          boxShadow: '0 12px 35px rgba(0,0,0,0.25)',
+          boxShadow: '0 16px 48px rgba(0,0,0,0.28), 0 4px 12px rgba(0,0,0,0.12)',
         }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -129,14 +129,15 @@ export default async function LoginPage() {
               display: 'flex',
               alignItems: 'center',
               gap: '0.4rem',
-              padding: '0.4rem 0.85rem',
+              padding: '0.35rem 0.8rem',
               borderRadius: 'var(--radius-full)',
-              background: 'rgba(255,255,255,0.13)',
-              border: '1px solid rgba(255,255,255,0.22)',
-              color: 'rgba(255,255,255,0.92)',
-              fontSize: '0.78rem',
+              background: 'rgba(255,255,255,0.12)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              color: 'rgba(255,255,255,0.9)',
+              fontSize: '0.76rem',
               fontWeight: 500,
-              backdropFilter: 'blur(8px)',
+              backdropFilter: 'blur(10px)',
+              transition: 'background 0.15s ease',
             }}>
               <span>{icon}</span>
               <span>{label}</span>
@@ -154,17 +155,27 @@ export default async function LoginPage() {
         alignItems: 'center',
         justifyContent: 'center',
         padding: '3rem 2.5rem',
+        position: 'relative',
       }}>
-        {/* Top accent */}
+        {/* Top accent bar */}
         <div style={{
-          width: '100%',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
           height: '4px',
-          background: 'var(--grad-brand)',
-          borderRadius: 'var(--radius-full)',
-          marginBottom: '2.5rem',
+          background: 'linear-gradient(90deg, #1a56db 0%, #0ea579 100%)',
         }} />
 
-        <div style={{ width: '100%', maxWidth: '340px' }}>
+        {/* Faint mesh bg */}
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundImage: 'radial-gradient(at 80% 10%, hsla(228,90%,96%,0.7) 0, transparent 50%), radial-gradient(at 20% 90%, hsla(155,80%,96%,0.5) 0, transparent 50%)',
+          pointerEvents: 'none',
+        }} />
+
+        <div style={{ width: '100%', maxWidth: '340px', position: 'relative', zIndex: 1, paddingTop: '0.5rem' }}>
           {/* Header */}
           <div style={{ marginBottom: '2rem' }}>
             <h2 style={{

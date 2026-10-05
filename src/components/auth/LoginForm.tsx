@@ -77,7 +77,7 @@ export default function LoginForm() {
             }}
             onFocus={(e) => {
               e.currentTarget.style.borderColor = 'var(--ns-blue)';
-              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0, 82, 204, 0.15)';
+              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(26, 86, 219, 0.18)';
               e.currentTarget.style.background = '#FFFFFF';
             }}
             onBlur={(e) => {
@@ -136,7 +136,7 @@ export default function LoginForm() {
             }}
             onFocus={(e) => {
               e.currentTarget.style.borderColor = 'var(--ns-blue)';
-              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0, 82, 204, 0.15)';
+              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(26, 86, 219, 0.18)';
               e.currentTarget.style.background = '#FFFFFF';
             }}
             onBlur={(e) => {
@@ -169,7 +169,7 @@ export default function LoginForm() {
           padding: '0.85rem 1.25rem',
           background: isPending
             ? '#94A3B8'
-            : 'linear-gradient(135deg, var(--ns-blue) 0%, #0040A8 100%)',
+            : 'linear-gradient(135deg, var(--ns-blue) 0%, #1240a8 100%)',
           color: '#ffffff',
           borderRadius: '10px',
           fontSize: '0.95rem',
@@ -177,7 +177,7 @@ export default function LoginForm() {
           fontFamily: 'var(--font-heading)',
           border: 'none',
           cursor: isPending ? 'not-allowed' : 'pointer',
-          boxShadow: isPending ? 'none' : '0 4px 14px rgba(0, 82, 204, 0.3)',
+          boxShadow: isPending ? 'none' : '0 4px 14px rgba(26, 86, 219, 0.35)',
           transition: 'transform 0.15s, box-shadow 0.15s',
           display: 'flex',
           alignItems: 'center',
@@ -187,13 +187,13 @@ export default function LoginForm() {
         onMouseEnter={(e) => {
           if (!isPending) {
             e.currentTarget.style.transform = 'translateY(-1px)';
-            e.currentTarget.style.boxShadow = '0 6px 18px rgba(0, 82, 204, 0.4)';
+            e.currentTarget.style.boxShadow = '0 6px 20px rgba(26, 86, 219, 0.45)';
           }
         }}
         onMouseLeave={(e) => {
           if (!isPending) {
             e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 4px 14px rgba(0, 82, 204, 0.3)';
+            e.currentTarget.style.boxShadow = '0 4px 14px rgba(26, 86, 219, 0.35)';
           }
         }}
       >

@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import React, { useState, useTransition, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   recordStaffTimeInAction,
   recordStaffTimeOutAction,
@@ -27,6 +28,12 @@ interface StaffProfileData {
   };
 }
 
+interface ChecklistResponse {
+  taskKey: string;
+  isCompleted: boolean;
+  notes: string | null;
+}
+
 interface StaffAttendanceData {
   id: string;
   date: string | Date;
@@ -36,11 +43,7 @@ interface StaffAttendanceData {
   isLate: boolean;
   lateMinutes: number;
   isChecklistComplete: boolean;
-  checklistResponses: Array<{
-    taskKey: string;
-    isCompleted: boolean;
-    notes: string | null;
-  }>;
+  checklistResponses: ChecklistResponse[];
 }
 
 interface Props {
@@ -48,29 +51,53 @@ interface Props {
   todayAttendance: StaffAttendanceData | null;
 }
 
-export default function StaffOperationsDesk({ profile, todayAttendance }: Props) {
+function buildCheckedMap(responses: ChecklistResponse[]): Record<string, boolean> {
+  const map: Record<string, boolean> = {};
+  responses.forEach((r) => { map[r.taskKey] = r.isCompleted; });
+  return map;
+}
+
+function buildNotesMap(responses: ChecklistResponse[]): Record<string, string> {
+  const map: Record<string, string> = {};
+  responses.forEach((r) => { if (r.notes) map[r.taskKey] = r.notes; });
+  return map;
+}
+
+export default function StaffOperationsDesk({ profile, todayAttendance: initialAttendance }: Props) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY'>('DAILY');
 
-  // Initialize checklist states from today's attendance
+  // Local attendance state (synced from server via prop)
+  const [attendance, setAttendance] = useState<StaffAttendanceData | null>(initialAttendance);
+
+  // Sync local attendance state whenever the server sends new data
+  const prevAttendanceRef = useRef<string>(JSON.stringify(initialAttendance));
+  useEffect(() => {
+    const next = JSON.stringify(initialAttendance);
+    if (next !== prevAttendanceRef.current) {
+      prevAttendanceRef.current = next;
+      setAttendance(initialAttendance);
+      // Re-sync checklist from refreshed data
+      if (initialAttendance?.checklistResponses) {
+        setCheckedMap(buildCheckedMap(initialAttendance.checklistResponses));
+        setNotesMap(buildNotesMap(initialAttendance.checklistResponses));
+      }
+    }
+  }, [initialAttendance]);
+
   const isIT = profile.roleType === 'IT';
   const dailyDefs = isIT ? IT_DAILY_CHECKLIST : ADMIN_DAILY_CHECKLIST;
 
-  // Track checked states
-  const initialChecked: Record<string, boolean> = {};
-  const initialNotes: Record<string, string> = {};
-
-  if (todayAttendance?.checklistResponses) {
-    todayAttendance.checklistResponses.forEach((r) => {
-      initialChecked[r.taskKey] = r.isCompleted;
-      if (r.notes) initialNotes[r.taskKey] = r.notes;
-    });
-  }
-
-  const [checkedMap, setCheckedMap] = useState<Record<string, boolean>>(initialChecked);
-  const [notesMap, setNotesMap] = useState<Record<string, string>>(initialNotes);
+  // Checklist state — initialized from attendance responses
+  const [checkedMap, setCheckedMap] = useState<Record<string, boolean>>(
+    buildCheckedMap(initialAttendance?.checklistResponses ?? [])
+  );
+  const [notesMap, setNotesMap] = useState<Record<string, string>>(
+    buildNotesMap(initialAttendance?.checklistResponses ?? [])
+  );
 
   // Filter current displayed items based on category
   let currentDefs: ChecklistItemDef[] = [];
@@ -83,7 +110,6 @@ export default function StaffOperationsDesk({ profile, todayAttendance }: Props)
   }
 
   const dailyCompleteCount = dailyDefs.filter((d) => checkedMap[d.key]).length;
-  const isAllDailyCompleted = dailyCompleteCount === dailyDefs.length;
 
   const handleTimeIn = () => {
     setErrorMsg(null);
@@ -93,7 +119,21 @@ export default function StaffOperationsDesk({ profile, todayAttendance }: Props)
       if (!res.success) {
         setErrorMsg(res.error || 'Failed to record Time In');
       } else {
+        // Optimistically update local attendance state (res.attendance won't have checklistResponses)
+        const att = res.attendance as any;
+        setAttendance({
+          id: att.id,
+          date: att.date,
+          timeIn: att.timeIn,
+          timeOut: att.timeOut,
+          status: att.status,
+          isLate: att.isLate,
+          lateMinutes: att.lateMinutes,
+          isChecklistComplete: false,
+          checklistResponses: [],
+        });
         setSuccessMsg('Time In successfully recorded! Please review and complete your checklist.');
+        router.refresh();
       }
     });
   };
@@ -103,7 +143,7 @@ export default function StaffOperationsDesk({ profile, todayAttendance }: Props)
   };
 
   const handleSaveChecklist = () => {
-    if (!todayAttendance) {
+    if (!attendance) {
       setErrorMsg('Please record Time In first before saving your checklist.');
       return;
     }
@@ -121,24 +161,29 @@ export default function StaffOperationsDesk({ profile, todayAttendance }: Props)
 
     startTransition(async () => {
       const res = await submitStaffChecklistAction({
-        attendanceId: todayAttendance.id,
+        attendanceId: attendance.id,
         items: itemsToSubmit,
       });
 
       if (!res.success) {
         setErrorMsg(res.error || 'Failed to save checklist');
       } else {
+        // Optimistically update isChecklistComplete in local state
+        setAttendance((prev) =>
+          prev ? { ...prev, isChecklistComplete: !!res.isChecklistComplete } : prev
+        );
         setSuccessMsg(
           res.isChecklistComplete
             ? 'Checklist updated! All mandatory tasks are verified. Time Out is now unlocked.'
             : 'Checklist progress saved. Complete remaining mandatory items to unlock Time Out.'
         );
+        router.refresh();
       }
     });
   };
 
   const handleTimeOut = () => {
-    if (!todayAttendance) {
+    if (!attendance) {
       setErrorMsg('No attendance record found for today.');
       return;
     }
@@ -147,11 +192,16 @@ export default function StaffOperationsDesk({ profile, todayAttendance }: Props)
     setSuccessMsg(null);
 
     startTransition(async () => {
-      const res = await recordStaffTimeOutAction(todayAttendance.id);
+      const res = await recordStaffTimeOutAction(attendance.id);
       if (!res.success) {
         setErrorMsg(res.error || 'Failed to record Time Out');
       } else {
+        // Optimistically update local attendance
+        setAttendance((prev) =>
+          prev ? { ...prev, timeOut: new Date().toISOString() } : prev
+        );
         setSuccessMsg('Time Out successfully confirmed! End-of-shift duties verified.');
+        router.refresh();
       }
     });
   };
@@ -202,26 +252,38 @@ export default function StaffOperationsDesk({ profile, todayAttendance }: Props)
 
         {/* Time In / Out Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          {!todayAttendance?.timeIn ? (
+          {!attendance?.timeIn ? (
             <button
               onClick={handleTimeIn}
               disabled={isPending}
               style={{
                 padding: '0.65rem 1.25rem',
                 borderRadius: 'var(--radius-sm)',
-                background: 'linear-gradient(135deg, var(--ns-green) 0%, var(--ns-green-dark) 100%)',
+                background: isPending
+                  ? 'var(--border-medium)'
+                  : 'linear-gradient(135deg, var(--ns-green) 0%, var(--ns-green-dark) 100%)',
                 color: '#fff',
                 border: 'none',
                 fontWeight: 600,
                 fontSize: '0.875rem',
-                cursor: 'pointer',
+                cursor: isPending ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
                 boxShadow: 'var(--shadow-sm)',
+                transition: 'all 0.15s ease',
               }}
             >
-              ⏰ TIME IN (Shift Start)
+              {isPending ? (
+                <>
+                  <span style={{
+                    width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.4)',
+                    borderTopColor: '#fff', borderRadius: '50%',
+                    display: 'inline-block', animation: 'spin 0.7s linear infinite',
+                  }} />
+                  Recording...
+                </>
+              ) : '⏰ TIME IN (Shift Start)'}
             </button>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -236,34 +298,34 @@ export default function StaffOperationsDesk({ profile, todayAttendance }: Props)
                   fontWeight: 700,
                 }}
               >
-                In: {fmtTime(todayAttendance.timeIn)}
+                In: {fmtTime(attendance.timeIn)}
               </span>
 
-              {!todayAttendance.timeOut ? (
+              {!attendance.timeOut ? (
                 <button
                   onClick={handleTimeOut}
-                  disabled={isPending || !todayAttendance.isChecklistComplete}
+                  disabled={isPending || !attendance.isChecklistComplete}
                   title={
-                    !todayAttendance.isChecklistComplete
+                    !attendance.isChecklistComplete
                       ? 'Time Out is locked until End-of-Shift Checklist is complete'
                       : 'Confirm End of Shift'
                   }
                   style={{
                     padding: '0.65rem 1.25rem',
                     borderRadius: 'var(--radius-sm)',
-                    background: todayAttendance.isChecklistComplete ? 'var(--ns-red)' : 'var(--border-light)',
-                    color: todayAttendance.isChecklistComplete ? '#fff' : 'var(--text-muted)',
-                    border: todayAttendance.isChecklistComplete ? 'none' : '1px solid var(--border-medium)',
+                    background: attendance.isChecklistComplete ? 'var(--ns-red)' : 'var(--border-light)',
+                    color: attendance.isChecklistComplete ? '#fff' : 'var(--text-muted)',
+                    border: attendance.isChecklistComplete ? 'none' : '1px solid var(--border-medium)',
                     fontWeight: 600,
                     fontSize: '0.875rem',
-                    cursor: todayAttendance.isChecklistComplete ? 'pointer' : 'not-allowed',
+                    cursor: attendance.isChecklistComplete && !isPending ? 'pointer' : 'not-allowed',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.5rem',
                   }}
                 >
                   🚪 TIME OUT
-                  {!todayAttendance.isChecklistComplete && ' (Locked 🔒)'}
+                  {!attendance.isChecklistComplete && ' (Locked 🔒)'}
                 </button>
               ) : (
                 <span
@@ -277,7 +339,7 @@ export default function StaffOperationsDesk({ profile, todayAttendance }: Props)
                     fontWeight: 700,
                   }}
                 >
-                  Out: {fmtTime(todayAttendance.timeOut)}
+                  Out: {fmtTime(attendance.timeOut)}
                 </span>
               )}
             </div>
@@ -321,8 +383,8 @@ export default function StaffOperationsDesk({ profile, todayAttendance }: Props)
       {/* Mandatory Lockout Notice */}
       <div
         style={{
-          background: todayAttendance?.isChecklistComplete ? 'rgba(15, 118, 110, 0.08)' : 'rgba(180, 83, 9, 0.08)',
-          border: `1px solid ${todayAttendance?.isChecklistComplete ? 'rgba(15,118,110,0.4)' : 'rgba(180,83,9,0.4)'}`,
+          background: attendance?.isChecklistComplete ? 'rgba(15, 118, 110, 0.08)' : 'rgba(180, 83, 9, 0.08)',
+          border: `1px solid ${attendance?.isChecklistComplete ? 'rgba(15,118,110,0.4)' : 'rgba(180,83,9,0.4)'}`,
           borderRadius: 'var(--radius-sm)',
           padding: '1rem',
           display: 'flex',
@@ -332,18 +394,18 @@ export default function StaffOperationsDesk({ profile, todayAttendance }: Props)
       >
         <div>
           <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)', marginBottom: '0.2rem' }}>
-            {todayAttendance?.isChecklistComplete
+            {attendance?.isChecklistComplete
               ? '✅ End-of-Shift Checklist Complete'
               : '🔒 End-of-Shift Checklist Lockout Rule'}
           </div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-            {todayAttendance?.isChecklistComplete
+            {attendance?.isChecklistComplete
               ? 'All mandatory tasks verified. You are authorized to complete Time Out when your scheduled shift concludes.'
               : `Admin & IT logout is strictly restricted until daily checklist items are marked complete. Progress: ${dailyCompleteCount} of ${dailyDefs.length} items verified.`}
           </div>
         </div>
 
-        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: todayAttendance?.isChecklistComplete ? '#0F766E' : '#B45309' }}>
+        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: attendance?.isChecklistComplete ? '#0F766E' : '#B45309' }}>
           {Math.round((dailyCompleteCount / dailyDefs.length) * 100)}%
         </div>
       </div>
@@ -351,51 +413,33 @@ export default function StaffOperationsDesk({ profile, todayAttendance }: Props)
       {/* Category Tabs (IT has Daily / Weekly / Monthly) */}
       {isIT && (
         <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-          <button
-            onClick={() => setActiveCategory('DAILY')}
-            style={{
-              padding: '0.4rem 1rem',
-              borderRadius: 'var(--radius-sm)',
-              background: activeCategory === 'DAILY' ? 'var(--accent)' : 'transparent',
-              color: activeCategory === 'DAILY' ? '#fff' : 'var(--text-dim)',
-              border: 'none',
-              cursor: 'pointer',
-              fontWeight: 600,
-              fontSize: '0.85rem',
-            }}
-          >
-            📋 Daily Routine Checklist
-          </button>
-          <button
-            onClick={() => setActiveCategory('WEEKLY')}
-            style={{
-              padding: '0.4rem 1rem',
-              borderRadius: 'var(--radius-sm)',
-              background: activeCategory === 'WEEKLY' ? 'var(--accent)' : 'transparent',
-              color: activeCategory === 'WEEKLY' ? '#fff' : 'var(--text-dim)',
-              border: 'none',
-              cursor: 'pointer',
-              fontWeight: 600,
-              fontSize: '0.85rem',
-            }}
-          >
-            🗓️ Weekly IT Tasks
-          </button>
-          <button
-            onClick={() => setActiveCategory('MONTHLY')}
-            style={{
-              padding: '0.4rem 1rem',
-              borderRadius: 'var(--radius-sm)',
-              background: activeCategory === 'MONTHLY' ? 'var(--accent)' : 'transparent',
-              color: activeCategory === 'MONTHLY' ? '#fff' : 'var(--text-dim)',
-              border: 'none',
-              cursor: 'pointer',
-              fontWeight: 600,
-              fontSize: '0.85rem',
-            }}
-          >
-            📊 Monthly IT Tasks
-          </button>
+          {(['DAILY', 'WEEKLY', 'MONTHLY'] as const).map((cat) => {
+            const labels: Record<string, string> = {
+              DAILY: '📋 Daily Routine Checklist',
+              WEEKLY: '🗓️ Weekly IT Tasks',
+              MONTHLY: '📊 Monthly IT Tasks',
+            };
+            return (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setActiveCategory(cat)}
+                style={{
+                  padding: '0.4rem 1rem',
+                  borderRadius: 'var(--radius-sm)',
+                  background: activeCategory === cat ? 'var(--accent)' : 'transparent',
+                  color: activeCategory === cat ? '#fff' : 'var(--text-dim)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {labels[cat]}
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -414,36 +458,60 @@ export default function StaffOperationsDesk({ profile, todayAttendance }: Props)
               {activeCategory} Checklist Items
             </h3>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
-              Select all verified duties. Time Out becomes available when all daily mandatory tasks are checked.
+              {attendance
+                ? 'Select all verified duties. Time Out becomes available when all daily mandatory tasks are checked.'
+                : '⚠️ Record your Time In first to enable checklist saving.'}
             </span>
           </div>
 
           <button
+            type="button"
             onClick={handleSaveChecklist}
-            disabled={isPending || !todayAttendance}
+            disabled={isPending || !attendance}
             style={{
               padding: '0.5rem 1rem',
               borderRadius: 'var(--radius-sm)',
-              background: 'var(--accent)',
-              color: '#fff',
+              background: !attendance ? 'var(--border-medium)' : 'var(--accent)',
+              color: !attendance ? 'var(--text-muted)' : '#fff',
               border: 'none',
               fontWeight: 600,
               fontSize: '0.85rem',
-              cursor: todayAttendance ? 'pointer' : 'not-allowed',
-              opacity: todayAttendance ? 1 : 0.6,
+              cursor: attendance && !isPending ? 'pointer' : 'not-allowed',
+              opacity: 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              transition: 'all 0.15s ease',
             }}
           >
-            💾 Save Checklist Progress
+            {isPending ? (
+              <>
+                <span style={{
+                  width: '12px', height: '12px', border: '2px solid rgba(255,255,255,0.4)',
+                  borderTopColor: '#fff', borderRadius: '50%',
+                  display: 'inline-block', animation: 'spin 0.7s linear infinite',
+                }} />
+                Saving...
+              </>
+            ) : '💾 Save Checklist Progress'}
           </button>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {currentDefs.map((def) => {
+          {currentDefs.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-dim)', fontSize: '0.875rem' }}>
+              No checklist items for this category.
+            </div>
+          ) : currentDefs.map((def) => {
             const isChecked = !!checkedMap[def.key];
             return (
               <div
                 key={def.key}
                 onClick={() => handleToggleTask(def.key)}
+                role="checkbox"
+                aria-checked={isChecked}
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') handleToggleTask(def.key); }}
                 style={{
                   display: 'flex',
                   alignItems: 'flex-start',
@@ -454,12 +522,14 @@ export default function StaffOperationsDesk({ profile, todayAttendance }: Props)
                   border: `1px solid ${isChecked ? '#3b82f6' : 'var(--border-color)'}`,
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
+                  outline: 'none',
                 }}
               >
                 <input
                   type="checkbox"
                   checked={isChecked}
                   onChange={() => {}} // Handled by container click
+                  onClick={(e) => e.stopPropagation()}
                   style={{ marginTop: '0.2rem', cursor: 'pointer', width: '16px', height: '16px' }}
                 />
                 <div style={{ flex: 1 }}>
@@ -468,7 +538,6 @@ export default function StaffOperationsDesk({ profile, todayAttendance }: Props)
                       fontSize: '0.9rem',
                       fontWeight: 600,
                       color: isChecked ? 'var(--text-primary)' : 'var(--text-muted)',
-                      textDecoration: isChecked ? 'none' : 'none',
                     }}
                   >
                     {def.label}
@@ -479,11 +548,20 @@ export default function StaffOperationsDesk({ profile, todayAttendance }: Props)
                     </div>
                   )}
                 </div>
+                {isChecked && (
+                  <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>✅</span>
+                )}
               </div>
             );
           })}
         </div>
       </div>
+
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useTransition, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import FreshnessCheckModal from './FreshnessCheckModal';
 import DailyOutputModal from '../output/DailyOutputModal';
 import { recordTeacherLogoutAction } from '@/actions/attendance';
@@ -40,6 +41,7 @@ export default function TeacherAttendanceWidget({
   initialDailyOutput?: DailyOutputData;
   announcements?: Array<{ id: string; title: string; content: string }>;
 }) {
+  const router = useRouter();
   const [attendance, setAttendance] = useState<AttendanceState>(initialAttendance);
   const [modalOpen, setModalOpen] = useState(false);
   const [dailyOutputModalOpen, setDailyOutputModalOpen] = useState(false);
@@ -78,6 +80,9 @@ export default function TeacherAttendanceWidget({
       earlyOutMinutes: 0,
       status: res.isLate ? 'LATE' : 'PRESENT',
     });
+    startTransition(() => {
+      router.refresh();
+    });
   };
 
   const handleLogout = (e: React.FormEvent) => {
@@ -104,6 +109,7 @@ export default function TeacherAttendanceWidget({
         );
         setLogoutSuccess(`Shift completed! Time-out recorded at ${res.logoutTimestamp}.`);
         setShowEarlyOutInput(false);
+        router.refresh();
       }
     });
   };
@@ -125,37 +131,49 @@ export default function TeacherAttendanceWidget({
         <div>
           {attendance?.timeOut ? (
             <span style={{
-              padding: '6px 14px',
+              padding: '5px 14px',
               borderRadius: '999px',
-              backgroundColor: 'rgba(13, 148, 136, 0.12)',
-              color: '#0F766E',
-              border: '1px solid rgba(13, 148, 136, 0.25)',
-              fontSize: '0.85rem',
+              backgroundColor: 'rgba(13, 148, 136, 0.10)',
+              color: '#0b7d5c',
+              border: '1px solid rgba(13, 148, 136, 0.22)',
+              fontSize: '0.82rem',
               fontWeight: 700,
+              fontFamily: 'var(--font-heading)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
             }}>
               ✓ Shift Completed
             </span>
           ) : attendance?.timeIn ? (
             <span style={{
-              padding: '6px 14px',
+              padding: '5px 14px',
               borderRadius: '999px',
-              backgroundColor: attendance.isLate ? 'rgba(239, 68, 68, 0.12)' : 'rgba(0, 82, 204, 0.10)',
-              color: attendance.isLate ? '#B91C1C' : '#0052CC',
-              border: `1px solid ${attendance.isLate ? 'rgba(239, 68, 68, 0.25)' : 'rgba(0, 82, 204, 0.25)'}`,
-              fontSize: '0.85rem',
+              backgroundColor: attendance.isLate ? 'rgba(239, 68, 68, 0.10)' : 'rgba(26, 86, 219, 0.08)',
+              color: attendance.isLate ? '#c81e1e' : '#1240a8',
+              border: `1px solid ${attendance.isLate ? 'rgba(239, 68, 68, 0.22)' : 'rgba(26, 86, 219, 0.22)'}`,
+              fontSize: '0.82rem',
               fontWeight: 700,
+              fontFamily: 'var(--font-heading)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
             }}>
               {attendance.isLate ? `⚠️ On Duty (Late ${attendance.lateMinutes}m)` : '🟢 On Duty (Present)'}
             </span>
           ) : (
             <span style={{
-              padding: '6px 14px',
+              padding: '5px 14px',
               borderRadius: '999px',
-              backgroundColor: 'rgba(217, 119, 6, 0.12)',
-              color: '#B45309',
-              border: '1px solid rgba(217, 119, 6, 0.25)',
-              fontSize: '0.85rem',
+              backgroundColor: 'rgba(217, 119, 6, 0.10)',
+              color: '#b45309',
+              border: '1px solid rgba(217, 119, 6, 0.22)',
+              fontSize: '0.82rem',
               fontWeight: 700,
+              fontFamily: 'var(--font-heading)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
             }}>
               ⏳ Awaiting Freshness Check
             </span>
@@ -165,15 +183,15 @@ export default function TeacherAttendanceWidget({
 
       {/* Shift Window Rules Banner */}
       <div style={{
-        padding: '12px 16px',
-        borderRadius: 'var(--radius)',
-        backgroundColor: 'rgba(255,255,255,0.03)',
-        border: '1px solid var(--border-color)',
-        fontSize: '0.8rem',
-        color: 'var(--foreground-muted)',
-        marginBottom: '20px',
+        padding: '10px 14px',
+        borderRadius: 'var(--radius-sm)',
+        backgroundColor: 'var(--bg-page)',
+        border: '1px solid var(--border-light)',
+        fontSize: '0.78rem',
+        color: 'var(--text-muted)',
+        marginBottom: '18px',
         display: 'flex',
-        gap: '16px',
+        gap: '14px',
         flexWrap: 'wrap',
       }}>
         <div>• <strong>T-30:</strong> Login window opens 30m before shift</div>

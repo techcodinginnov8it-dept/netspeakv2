@@ -61,28 +61,28 @@ export default function TeacherSeatView({ seat }: { seat?: TeacherSeatInfo }) {
       }}>
         {/* Card Header Strip */}
         <div style={{
-          background: 'linear-gradient(135deg, rgba(37,99,235,0.2), rgba(124,58,237,0.2))',
-          borderBottom: '1px solid var(--border-color)',
-          padding: '1.5rem 1.75rem',
+          background: 'linear-gradient(135deg, rgba(26,86,219,0.12) 0%, rgba(124,111,236,0.12) 100%)',
+          borderBottom: '1px solid var(--border-light)',
+          padding: '1.4rem 1.75rem',
           display: 'flex',
           alignItems: 'center',
           gap: '1rem',
         }}>
           <div style={{
-            width: '52px', height: '52px',
-            borderRadius: 'var(--radius-sm)',
-            background: 'rgba(37,99,235,0.25)',
-            border: '1px solid rgba(37,99,235,0.4)',
+            width: '50px', height: '50px',
+            borderRadius: 'var(--radius-md)',
+            background: 'rgba(26,86,219,0.12)',
+            border: '1px solid rgba(26,86,219,0.22)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '1.5rem',
+            fontSize: '1.4rem',
           }}>
             🖥️
           </div>
           <div>
-            <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+            <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>
               {seat.workstationNo}
             </div>
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            <div style={{ fontSize: '0.83rem', color: 'var(--text-muted)', marginTop: '1px' }}>
               {seat.branch}
             </div>
           </div>
@@ -90,11 +90,12 @@ export default function TeacherSeatView({ seat }: { seat?: TeacherSeatInfo }) {
           <div style={{
             marginLeft: 'auto',
             display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-            padding: '0.3rem 0.9rem',
+            padding: '0.3rem 0.85rem',
             borderRadius: '100px',
             background: cfg.bg,
             color: cfg.text,
-            fontSize: '0.78rem', fontWeight: 600,
+            fontSize: '0.75rem', fontWeight: 700,
+            fontFamily: 'var(--font-heading)',
           }}>
             {cfg.icon} {cfg.label}
           </div>
@@ -129,10 +130,10 @@ export default function TeacherSeatView({ seat }: { seat?: TeacherSeatInfo }) {
 function InfoRow({ label, value, icon }: { label: string; value: string; icon: string }) {
   return (
     <div>
-      <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-dim)', marginBottom: '0.3rem' }}>
-        {icon} {label}
+      <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-dim)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <span style={{ fontSize: '0.8rem' }}>{icon}</span> {label}
       </div>
-      <div style={{ fontSize: '0.95rem', fontWeight: 500, color: 'var(--text-primary)' }}>
+      <div style={{ fontSize: '0.92rem', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>
         {value}
       </div>
     </div>

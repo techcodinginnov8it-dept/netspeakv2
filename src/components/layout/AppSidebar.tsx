@@ -53,11 +53,11 @@ function NavItem({
   accent?: 'blue' | 'green' | 'gold' | 'violet' | 'red';
 }) {
   const accentColors: Record<string, string> = {
-    blue:   'rgba(0, 82, 204, 0.16)',
-    green:  'rgba(23, 185, 120, 0.16)',
-    gold:   'rgba(244, 196, 48, 0.16)',
-    violet: 'rgba(154, 138, 239, 0.16)',
-    red:    'rgba(229, 62, 62, 0.14)',
+    blue:   'rgba(59, 130, 246, 0.18)',
+    green:  'rgba(14, 165, 121, 0.18)',
+    gold:   'rgba(245, 166, 35, 0.18)',
+    violet: 'rgba(124, 111, 236, 0.18)',
+    red:    'rgba(229, 62, 62, 0.16)',
   };
 
   return (
@@ -66,31 +66,34 @@ function NavItem({
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: '0.65rem',
-        padding: '0.55rem 0.85rem',
+        gap: '0.6rem',
+        padding: '0.5rem 0.85rem',
         borderRadius: 'var(--radius-sm)',
         fontSize: '0.82rem',
         fontWeight: 500,
-        color: 'rgba(255,255,255,0.78)',
+        color: 'rgba(255,255,255,0.72)',
         textDecoration: 'none',
-        transition: 'all 0.18s ease',
+        transition: 'all 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
         fontFamily: 'var(--font-body)',
         whiteSpace: 'nowrap',
+        borderLeft: '2px solid transparent',
       }}
       onMouseEnter={e => {
         const el = e.currentTarget as HTMLAnchorElement;
         el.style.background = accent ? accentColors[accent] : 'rgba(255,255,255,0.1)';
         el.style.color = '#fff';
-        el.style.transform = 'translateX(3px)';
+        el.style.borderLeftColor = accent === 'blue' ? '#3b82f6' : accent === 'green' ? '#34d399' : accent === 'gold' ? '#f5a623' : accent === 'violet' ? '#7c6fec' : accent === 'red' ? '#ef4444' : '#3b82f6';
+        el.style.paddingLeft = '1rem';
       }}
       onMouseLeave={e => {
         const el = e.currentTarget as HTMLAnchorElement;
         el.style.background = 'transparent';
-        el.style.color = 'rgba(255,255,255,0.78)';
-        el.style.transform = 'translateX(0)';
+        el.style.color = 'rgba(255,255,255,0.72)';
+        el.style.borderLeftColor = 'transparent';
+        el.style.paddingLeft = '0.85rem';
       }}
     >
-      <span style={{ fontSize: '1rem', flexShrink: 0, lineHeight: 1 }}>{icon}</span>
+      <span style={{ fontSize: '0.95rem', flexShrink: 0, lineHeight: 1 }}>{icon}</span>
       <span>{label}</span>
     </Link>
   );
@@ -99,14 +102,14 @@ function NavItem({
 function SectionLabel({ label }: { label: string }) {
   return (
     <div style={{
-      fontSize: '0.62rem',
+      fontSize: '0.6rem',
       fontWeight: 700,
       textTransform: 'uppercase',
-      letterSpacing: '0.1em',
-      color: 'rgba(255,255,255,0.35)',
+      letterSpacing: '0.12em',
+      color: 'rgba(255,255,255,0.28)',
       padding: '0 0.85rem',
-      marginBottom: '0.25rem',
-      marginTop: '0.2rem',
+      marginBottom: '0.2rem',
+      marginTop: '0.15rem',
       fontFamily: 'var(--font-heading)',
     }}>
       {label}
@@ -115,7 +118,7 @@ function SectionLabel({ label }: { label: string }) {
 }
 
 function Divider() {
-  return <div style={{ height: '1px', background: 'rgba(255,255,255,0.07)', margin: '0.4rem 0' }} />;
+  return <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '0.35rem 0.4rem' }} />;
 }
 
 /* ================================================================
@@ -145,47 +148,48 @@ export default function AppSidebar({
 
   return (
     <aside style={{
-      width: '240px',
-      minWidth: '240px',
-      background: 'linear-gradient(180deg, #003A9E 0%, #0052CC 60%, #082E7C 100%)',
+      width: '238px',
+      minWidth: '238px',
+      background: 'linear-gradient(175deg, #0a2158 0%, #1240a8 50%, #0f1d55 100%)',
       minHeight: 'calc(100vh - 64px)',
       display: 'flex',
       flexDirection: 'column',
       position: 'relative',
-      boxShadow: '2px 0 20px rgba(0,0,0,0.12)',
+      boxShadow: '2px 0 24px rgba(10, 33, 88, 0.22)',
     }}>
-      {/* Rainbow accent stripe */}
+      {/* Top accent stripe — brand gradient */}
       <div style={{
         height: '3px',
-        background: 'linear-gradient(90deg, #F4C430 0%, #3FD28F 40%, #9A8AEF 75%, #0052CC 100%)',
+        background: 'linear-gradient(90deg, #f5a623 0%, #34d399 35%, #7c6fec 70%, #3b82f6 100%)',
       }} />
 
       {/* User profile */}
       <div style={{
-        padding: '1.1rem 0.85rem 0.9rem',
-        borderBottom: '1px solid rgba(255,255,255,0.07)',
+        padding: '1rem 0.85rem 0.85rem',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
           <div style={{
-            width: '40px',
-            height: '40px',
+            width: '38px',
+            height: '38px',
             borderRadius: '10px',
-            background: 'linear-gradient(135deg, rgba(244,196,48,0.85) 0%, rgba(63,210,143,0.85) 100%)',
-            border: '2px solid rgba(255,255,255,0.25)',
+            background: 'linear-gradient(135deg, rgba(245,166,35,0.9) 0%, rgba(52,211,153,0.9) 100%)',
+            border: '1.5px solid rgba(255,255,255,0.22)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '1rem',
+            fontSize: '0.95rem',
             fontWeight: 700,
             color: '#fff',
             fontFamily: 'var(--font-heading)',
             flexShrink: 0,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
           }}>
             {user.fullName.charAt(0).toUpperCase()}
           </div>
           <div style={{ minWidth: 0 }}>
             <div style={{
-              fontSize: '0.83rem',
+              fontSize: '0.82rem',
               fontWeight: 600,
               color: '#fff',
               fontFamily: 'var(--font-heading)',
@@ -197,11 +201,12 @@ export default function AppSidebar({
               {user.fullName}
             </div>
             <div style={{
-              fontSize: '0.68rem',
-              color: 'rgba(255,255,255,0.5)',
+              fontSize: '0.65rem',
+              color: 'rgba(255,255,255,0.42)',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
+              marginTop: '1px',
             }}>
               {primaryRole}
             </div>
@@ -277,22 +282,29 @@ export default function AppSidebar({
       </div>
 
       {/* Bottom badge */}
-      <div style={{ padding: '0.75rem 0.85rem', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+      <div style={{ padding: '0.7rem 0.85rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         <div style={{
           display: 'flex',
           alignItems: 'center',
           gap: '0.5rem',
-          padding: '0.55rem 0.7rem',
+          padding: '0.5rem 0.7rem',
           borderRadius: 'var(--radius-sm)',
-          background: 'rgba(255,255,255,0.05)',
-          border: '1px solid rgba(255,255,255,0.08)',
+          background: 'rgba(255,255,255,0.04)',
+          border: '1px solid rgba(255,255,255,0.07)',
         }}>
-          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#3FD28F', flexShrink: 0 }} />
+          <div style={{
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            background: '#34d399',
+            flexShrink: 0,
+            boxShadow: '0 0 6px rgba(52,211,153,0.6)',
+          }} />
           <div>
-            <div style={{ fontSize: '0.68rem', fontWeight: 600, color: 'rgba(255,255,255,0.85)', fontFamily: 'var(--font-heading)', lineHeight: 1.2 }}>
+            <div style={{ fontSize: '0.67rem', fontWeight: 600, color: 'rgba(255,255,255,0.8)', fontFamily: 'var(--font-heading)', lineHeight: 1.2 }}>
               NETSPEAK PORTAL v2.0
             </div>
-            <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.45)', lineHeight: 1.2 }}>
+            <div style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.38)', lineHeight: 1.2 }}>
               Developed by Innov8IT
             </div>
           </div>

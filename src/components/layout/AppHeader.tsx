@@ -23,27 +23,27 @@ export default function AppHeader({ user, branches = [], isDutyLocked = false }:
 
   return (
     <header style={{
-      height: '64px',
-      background: 'var(--grad-brand)',
+      height: '62px',
+      background: 'linear-gradient(90deg, #0a2158 0%, #1240a8 40%, #1a56db 72%, #0ea579 100%)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: '0 1.75rem',
+      padding: '0 1.5rem',
       position: 'sticky',
       top: 0,
       zIndex: 100,
-      boxShadow: '0 2px 20px rgba(0, 82, 204, 0.25)',
+      boxShadow: '0 2px 24px rgba(10, 33, 88, 0.30)',
     }}>
       {/* Left — Brand */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
         {/* Company Logo */}
         <div style={{
-          width: '40px',
-          height: '40px',
-          borderRadius: '10px',
-          background: '#FFFFFF',
+          width: '38px',
+          height: '38px',
+          borderRadius: '9px',
+          background: '#ffffff',
           padding: '2px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.18)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -64,18 +64,18 @@ export default function AppHeader({ user, branches = [], isDutyLocked = false }:
           <div style={{
             fontFamily: 'var(--font-heading)',
             fontWeight: 700,
-            fontSize: '1.05rem',
+            fontSize: '1rem',
             color: '#fff',
-            letterSpacing: '-0.01em',
+            letterSpacing: '-0.02em',
             lineHeight: 1.1,
           }}>
             Netspeak Portal
           </div>
           <div style={{
-            fontSize: '0.68rem',
-            color: 'rgba(255,255,255,0.72)',
+            fontSize: '0.65rem',
+            color: 'rgba(255,255,255,0.65)',
             fontWeight: 500,
-            letterSpacing: '0.04em',
+            letterSpacing: '0.05em',
             textTransform: 'uppercase',
           }}>
             ESL Operations Management
@@ -95,16 +95,17 @@ export default function AppHeader({ user, branches = [], isDutyLocked = false }:
           display: 'inline-flex',
           alignItems: 'center',
           gap: '4px',
-          fontSize: '0.68rem',
-          padding: '3px 10px',
+          fontSize: '0.65rem',
+          padding: '3px 9px',
           borderRadius: 'var(--radius-full)',
-          background: 'rgba(255,255,255,0.18)',
-          border: '1px solid rgba(255,255,255,0.3)',
-          color: 'rgba(255,255,255,0.92)',
+          background: 'rgba(52, 211, 153, 0.18)',
+          border: '1px solid rgba(52, 211, 153, 0.35)',
+          color: 'rgba(255,255,255,0.95)',
           fontWeight: 600,
-          letterSpacing: '0.03em',
+          letterSpacing: '0.04em',
+          backdropFilter: 'blur(8px)',
         }}>
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#3FD28F', display: 'inline-block' }} />
+          <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#34d399', display: 'inline-block', boxShadow: '0 0 6px rgba(52,211,153,0.8)' }} />
           LIVE
         </span>
       </div>
@@ -121,15 +122,16 @@ export default function AppHeader({ user, branches = [], isDutyLocked = false }:
 
         {/* Role badge */}
         <span style={{
-          fontSize: '0.72rem',
-          padding: '4px 12px',
+          fontSize: '0.68rem',
+          padding: '3px 10px',
           borderRadius: 'var(--radius-full)',
-          background: 'rgba(255,255,255,0.15)',
-          border: '1px solid rgba(255,255,255,0.28)',
-          color: 'rgba(255,255,255,0.95)',
+          background: 'rgba(255,255,255,0.12)',
+          border: '1px solid rgba(255,255,255,0.22)',
+          color: 'rgba(255,255,255,0.9)',
           fontWeight: 600,
           fontFamily: 'var(--font-heading)',
           letterSpacing: '0.02em',
+          backdropFilter: 'blur(8px)',
         }}>
           {primaryRole}
         </span>
@@ -155,19 +157,20 @@ export default function AppHeader({ user, branches = [], isDutyLocked = false }:
 
         {/* Avatar circle */}
         <div style={{
-          width: '34px',
-          height: '34px',
+          width: '32px',
+          height: '32px',
           borderRadius: '50%',
-          background: 'rgba(255,255,255,0.22)',
-          border: '2px solid rgba(255,255,255,0.4)',
+          background: 'rgba(255,255,255,0.18)',
+          border: '1.5px solid rgba(255,255,255,0.38)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '0.8rem',
+          fontSize: '0.78rem',
           fontWeight: 700,
           color: '#fff',
           fontFamily: 'var(--font-heading)',
           flexShrink: 0,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
         }}>
           {user.fullName.charAt(0).toUpperCase()}
         </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { verifyTeacherAttendanceAction } from '@/actions/attendance';
 import { fmtTime } from '@/lib/formatTime';
 
@@ -37,6 +38,7 @@ export default function AttendanceRosterTable({
   initialRoster: RosterItem[];
   canVerify: boolean;
 }) {
+  const router = useRouter();
   const [roster, setRoster] = useState<RosterItem[]>(initialRoster);
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -187,6 +189,7 @@ export default function AttendanceRosterTable({
         })
       );
       setEditingAttendance(null);
+      router.refresh();
     });
   };
 

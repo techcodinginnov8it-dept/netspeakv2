@@ -62,73 +62,25 @@ export default function TeacherDirectoryTable({
     switch (status) {
       case 'APPROVED':
         return (
-          <span style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '5px',
-            padding: '4px 10px',
-            borderRadius: '999px',
-            backgroundColor: 'rgba(13, 148, 136, 0.1)',
-            color: '#0F766E',
-            border: '1px solid rgba(13, 148, 136, 0.25)',
-            fontSize: '0.75rem',
-            fontWeight: 700,
-            whiteSpace: 'nowrap',
-          }}>
+          <span className="badge badge-green" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
             ✓ Approved
           </span>
         );
       case 'UNDER_REVIEW':
         return (
-          <span style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '5px',
-            padding: '4px 10px',
-            borderRadius: '999px',
-            backgroundColor: 'rgba(0, 82, 204, 0.1)',
-            color: '#0052CC',
-            border: '1px solid rgba(0, 82, 204, 0.25)',
-            fontSize: '0.75rem',
-            fontWeight: 700,
-            whiteSpace: 'nowrap',
-          }}>
+          <span className="badge badge-blue" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
             🔍 Under Review
           </span>
         );
       case 'REJECTED':
         return (
-          <span style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '5px',
-            padding: '4px 10px',
-            borderRadius: '999px',
-            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-            color: '#DC2626',
-            border: '1px solid rgba(239, 68, 68, 0.25)',
-            fontSize: '0.75rem',
-            fontWeight: 700,
-            whiteSpace: 'nowrap',
-          }}>
+          <span className="badge badge-red" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
             ✕ Rejected
           </span>
         );
       default:
         return (
-          <span style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '5px',
-            padding: '4px 10px',
-            borderRadius: '999px',
-            backgroundColor: 'rgba(217, 119, 6, 0.1)',
-            color: '#B45309',
-            border: '1px solid rgba(217, 119, 6, 0.25)',
-            fontSize: '0.75rem',
-            fontWeight: 700,
-            whiteSpace: 'nowrap',
-          }}>
+          <span className="badge badge-gold" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
             ⏳ Pending Review
           </span>
         );

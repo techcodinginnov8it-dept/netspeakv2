@@ -40,33 +40,48 @@ export default function ForgotPasswordPage() {
         fontFamily: 'var(--font-body)',
         alignItems: 'center',
         justifyContent: 'center',
-        background: '#F8FAFC',
+        background: 'var(--bg-page)',
+        backgroundImage: 'radial-gradient(at 0% 0%, rgba(26,86,219,0.06) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(14,165,121,0.05) 0px, transparent 50%)',
         padding: '1.5rem',
       }}
     >
       <div
+        className="card-glass"
         style={{
           width: '100%',
           maxWidth: '440px',
-          background: '#FFFFFF',
-          borderRadius: '16px',
-          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03)',
-          border: '1px solid #E2E8F0',
+          borderRadius: 'var(--radius-xl)',
+          boxShadow: 'var(--shadow-elevated)',
+          border: '1px solid var(--border-light)',
           padding: '2.5rem',
+          position: 'relative',
+          overflow: 'hidden',
         }}
       >
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '4px',
+            background: 'var(--grad-brand-vivid)',
+          }}
+        />
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <div
             style={{
               width: '56px',
               height: '56px',
-              borderRadius: '12px',
-              background: 'rgba(0, 82, 204, 0.08)',
+              borderRadius: 'var(--radius-lg)',
+              background: 'linear-gradient(135deg, rgba(26,86,219,0.12) 0%, rgba(14,165,121,0.08) 100%)',
+              border: '1px solid rgba(26,86,219,0.2)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               margin: '0 auto 1.25rem',
               fontSize: '1.75rem',
+              boxShadow: 'var(--shadow-xs)',
             }}
           >
             🔑
@@ -162,13 +177,24 @@ export default function ForgotPasswordPage() {
                 style={{
                   width: '100%',
                   padding: '0.75rem 0.9rem',
-                  background: '#F8FAFC',
-                  border: '1.5px solid #E2E8F0',
-                  borderRadius: '10px',
+                  background: 'var(--bg-surface)',
+                  border: '1.5px solid var(--border-color)',
+                  borderRadius: 'var(--radius-md)',
                   fontSize: '0.92rem',
-                  color: '#0F172A',
+                  color: 'var(--text-primary)',
                   outline: 'none',
                   fontFamily: 'var(--font-body)',
+                  transition: 'var(--transition-fast)',
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--ns-blue)';
+                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(26, 86, 219, 0.18)';
+                  e.currentTarget.style.background = '#FFFFFF';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--border-color)';
+                  e.currentTarget.style.boxShadow = 'none';
+                  e.currentTarget.style.background = 'var(--bg-surface)';
                 }}
               />
             </div>
@@ -181,19 +207,32 @@ export default function ForgotPasswordPage() {
                 padding: '0.85rem 1.25rem',
                 background: loading
                   ? '#94A3B8'
-                  : 'linear-gradient(135deg, var(--ns-blue) 0%, #0040A8 100%)',
+                  : 'linear-gradient(135deg, var(--ns-blue) 0%, #1240a8 100%)',
                 color: '#ffffff',
-                borderRadius: '10px',
+                borderRadius: 'var(--radius-md)',
                 fontSize: '0.95rem',
                 fontWeight: 600,
                 fontFamily: 'var(--font-heading)',
                 border: 'none',
                 cursor: loading ? 'not-allowed' : 'pointer',
-                boxShadow: loading ? 'none' : '0 4px 14px rgba(0, 82, 204, 0.3)',
+                boxShadow: loading ? 'none' : '0 4px 14px rgba(26, 86, 219, 0.35)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '0.5rem',
+                transition: 'var(--transition-fast)',
+              }}
+              onMouseEnter={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(26, 86, 219, 0.45)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 14px rgba(26, 86, 219, 0.35)';
+                }
               }}
             >
               {loading ? 'Dispatching Reset Link...' : 'Send Reset Link'}
@@ -204,10 +243,13 @@ export default function ForgotPasswordPage() {
                 href="/login"
                 style={{
                   fontSize: '0.875rem',
-                  color: '#64748B',
+                  color: 'var(--text-muted)',
                   textDecoration: 'none',
                   fontWeight: 500,
+                  transition: 'var(--transition-fast)',
                 }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--ns-blue)')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
               >
                 ← Return to Sign In
               </Link>
