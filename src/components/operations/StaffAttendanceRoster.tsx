@@ -35,6 +35,7 @@ interface AttendanceItem {
 
 interface Props {
   attendances: AttendanceItem[];
+  viewDate?: string;
 }
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
@@ -60,7 +61,7 @@ function statusColor(status: string) {
   return { bg: 'rgba(100,116,139,0.1)', color: '#475569', border: 'rgba(100,116,139,0.25)' };
 }
 
-export default function StaffAttendanceRoster({ attendances }: Props) {
+export default function StaffAttendanceRoster({ attendances, viewDate }: Props) {
   const [isPending, startTransition] = useTransition();
 
   // Filter state
@@ -224,6 +225,12 @@ export default function StaffAttendanceRoster({ attendances }: Props) {
             ))}
           </select>
         </div>
+
+        {viewDate && (
+          <span style={{ fontSize: '0.78rem', color: 'var(--text-dim)', fontWeight: 600 }}>
+            📅 {new Date(viewDate + 'T00:00:00').toLocaleDateString('en-PH', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+          </span>
+        )}
 
         {(search || roleFilter !== 'ALL' || statusFilter !== 'ALL') && (
           <button
