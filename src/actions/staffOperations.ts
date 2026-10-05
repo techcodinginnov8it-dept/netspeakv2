@@ -1,7 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/db';
-import { requireAuth, requirePermission, PERMISSIONS } from '@/lib/auth/rbac';
+import { requireAuth, requirePermission, hasPermission, PERMISSIONS } from '@/lib/auth/rbac';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { StaffRoleType, StaffAttendanceStatus, NotificationType, NotificationPriority } from '@prisma/client';
@@ -228,20 +228,37 @@ export async function reconcileStaffAttendanceAction(
   status: StaffAttendanceStatus,
   absenceReason?: string,
   notes?: string
-) {
-  await requirePermission(PERMISSIONS.OPERATIONS_MANAGE);
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await requireAuth();
+    if (!hasPermission(user, PERMISSIONS.OPERATIONS_MANAGE)) {
+      return { success: false, error: 'You do not have permission to reconcile attendance records.' };
+    }
 
-  await prisma.staffAttendance.update({
-    where: { id: attendanceId },
-    data: {
-      status,
-      absenceReason: absenceReason || null,
-      notes: notes || null,
-    },
-  });
+    if (!attendanceId || typeof attendanceId !== 'string') {
+      return { success: false, error: 'Invalid attendance record ID.' };
+    }
 
-  revalidatePath('/dashboard/operations/attendance');
-  return { success: true };
+    const existing = await prisma.staffAttendance.findUnique({ where: { id: attendanceId } });
+    if (!existing) {
+      return { success: false, error: 'Attendance record not found.' };
+    }
+
+    await prisma.staffAttendance.update({
+      where: { id: attendanceId },
+      data: {
+        status,
+        absenceReason: absenceReason?.trim() || null,
+        notes: notes?.trim() || null,
+      },
+    });
+
+    revalidatePath('/dashboard/operations/attendance');
+    return { success: true };
+  } catch (err: any) {
+    console.error('[reconcileStaffAttendanceAction] Error:', err?.message || err);
+    return { success: false, error: err?.message || 'Failed to reconcile attendance. Please try again.' };
+  }
 }
 
 /**
