@@ -73,24 +73,6 @@ export default function StaffOperationsDesk({ profile, todayAttendance: initialA
   // Local attendance state (synced from server via prop)
   const [attendance, setAttendance] = useState<StaffAttendanceData | null>(initialAttendance);
 
-  // Sync local attendance state whenever the server sends new data
-  const prevAttendanceRef = useRef<string>(JSON.stringify(initialAttendance));
-  useEffect(() => {
-    const next = JSON.stringify(initialAttendance);
-    if (next !== prevAttendanceRef.current) {
-      prevAttendanceRef.current = next;
-      setAttendance(initialAttendance);
-      // Re-sync checklist from refreshed data
-      if (initialAttendance?.checklistResponses) {
-        setCheckedMap(buildCheckedMap(initialAttendance.checklistResponses));
-        setNotesMap(buildNotesMap(initialAttendance.checklistResponses));
-      }
-    }
-  }, [initialAttendance]);
-
-  const isIT = profile.roleType === 'IT';
-  const dailyDefs = isIT ? IT_DAILY_CHECKLIST : ADMIN_DAILY_CHECKLIST;
-
   // Checklist state — initialized from attendance responses
   const [checkedMap, setCheckedMap] = useState<Record<string, boolean>>(
     buildCheckedMap(initialAttendance?.checklistResponses ?? [])
@@ -98,6 +80,31 @@ export default function StaffOperationsDesk({ profile, todayAttendance: initialA
   const [notesMap, setNotesMap] = useState<Record<string, string>>(
     buildNotesMap(initialAttendance?.checklistResponses ?? [])
   );
+
+  // When a checklist save triggers router.refresh(), we DON'T want to reset the
+  // checkedMap from props — the optimistic update is already correct. Only reset
+  // on a genuine new attendance record (e.g. after Time In) or on first load.
+  const skipChecklistSyncRef = useRef<boolean>(false);
+
+  // Sync local attendance state whenever the server sends new data
+  const prevAttendanceRef = useRef<string>(JSON.stringify(initialAttendance));
+  useEffect(() => {
+    const next = JSON.stringify(initialAttendance);
+    if (next !== prevAttendanceRef.current) {
+      prevAttendanceRef.current = next;
+      setAttendance(initialAttendance);
+      // Only re-sync checklist UI from server if this wasn't triggered by a checklist save
+      // (a save already optimistically updates checkedMap; re-syncing would cause flicker/revert)
+      if (!skipChecklistSyncRef.current && initialAttendance?.checklistResponses) {
+        setCheckedMap(buildCheckedMap(initialAttendance.checklistResponses));
+        setNotesMap(buildNotesMap(initialAttendance.checklistResponses));
+      }
+      skipChecklistSyncRef.current = false;
+    }
+  }, [initialAttendance]);
+
+  const isIT = profile.roleType === 'IT';
+  const dailyDefs = isIT ? IT_DAILY_CHECKLIST : ADMIN_DAILY_CHECKLIST;
 
   // Filter current displayed items based on category
   let currentDefs: ChecklistItemDef[] = [];
@@ -139,6 +146,14 @@ export default function StaffOperationsDesk({ profile, todayAttendance: initialA
   };
 
   const handleToggleTask = (key: string) => {
+    if (attendance?.timeOut) {
+      setErrorMsg('Your shift has ended (Time Out recorded). Checklist is finalized and locked from changes.');
+      return;
+    }
+    if (!attendance) {
+      setErrorMsg('Please record Time In first before checking tasks.');
+      return;
+    }
     setCheckedMap((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
@@ -148,10 +163,21 @@ export default function StaffOperationsDesk({ profile, todayAttendance: initialA
       return;
     }
 
+    if (attendance.timeOut) {
+      setErrorMsg('Your shift has ended (Time Out recorded). Checklist is locked and cannot be modified.');
+      return;
+    }
+
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    const itemsToSubmit = currentDefs.map((def) => ({
+    const allDefs = [
+      ...dailyDefs,
+      ...(isIT ? IT_WEEKLY_CHECKLIST : []),
+      ...(isIT ? IT_MONTHLY_CHECKLIST : []),
+    ];
+
+    const itemsToSubmit = allDefs.map((def) => ({
       taskCategory: def.category,
       taskKey: def.key,
       taskLabel: def.label,
@@ -168,14 +194,30 @@ export default function StaffOperationsDesk({ profile, todayAttendance: initialA
       if (!res.success) {
         setErrorMsg(res.error || 'Failed to save checklist');
       } else {
-        // Optimistically update isChecklistComplete in local state
-        setAttendance((prev) =>
-          prev ? { ...prev, isChecklistComplete: !!res.isChecklistComplete } : prev
-        );
+        skipChecklistSyncRef.current = true;
+
+        // Optimistically merge saved items into local attendance
+        setAttendance((prev) => {
+          if (!prev) return prev;
+          const existing = [...(prev.checklistResponses ?? [])];
+          for (const item of itemsToSubmit) {
+            const idx = existing.findIndex((r) => r.taskKey === item.taskKey);
+            const updated = { taskKey: item.taskKey, isCompleted: item.isCompleted, notes: item.notes || null };
+            if (idx >= 0) existing[idx] = updated;
+            else existing.push(updated);
+          }
+          return {
+            ...prev,
+            isChecklistComplete: !!res.isChecklistComplete,
+            checklistResponses: existing,
+          };
+        });
+
+        const completedCount = allDefs.filter((d) => checkedMap[d.key]).length;
         setSuccessMsg(
           res.isChecklistComplete
-            ? 'Checklist updated! All mandatory tasks are verified. Time Out is now unlocked.'
-            : 'Checklist progress saved. Complete remaining mandatory items to unlock Time Out.'
+            ? '✅ 100% Mandatory checklist completed! Time Out is now unlocked.'
+            : `💾 Checklist progress saved (${completedCount} of ${allDefs.length} items completed). Complete 100% of daily tasks to unlock Time Out.`
         );
         router.refresh();
       }
@@ -452,109 +494,163 @@ export default function StaffOperationsDesk({ profile, todayAttendance: initialA
           padding: '1.25rem',
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <div>
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 0.25rem 0', color: 'var(--text-primary)' }}>
-              {activeCategory} Checklist Items
-            </h3>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
-              {attendance
-                ? 'Select all verified duties. Time Out becomes available when all daily mandatory tasks are checked.'
-                : '⚠️ Record your Time In first to enable checklist saving.'}
-            </span>
-          </div>
+        {(() => {
+          const isTimedOut = !!attendance?.timeOut;
+          const isNotStarted = !attendance?.timeIn;
+          const isChecklistDisabled = isTimedOut || isNotStarted;
 
-          <button
-            type="button"
-            onClick={handleSaveChecklist}
-            disabled={isPending || !attendance}
-            style={{
-              padding: '0.5rem 1rem',
-              borderRadius: 'var(--radius-sm)',
-              background: !attendance ? 'var(--border-medium)' : 'var(--accent)',
-              color: !attendance ? 'var(--text-muted)' : '#fff',
-              border: 'none',
-              fontWeight: 600,
-              fontSize: '0.85rem',
-              cursor: attendance && !isPending ? 'pointer' : 'not-allowed',
-              opacity: 1,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            {isPending ? (
-              <>
-                <span style={{
-                  width: '12px', height: '12px', border: '2px solid rgba(255,255,255,0.4)',
-                  borderTopColor: '#fff', borderRadius: '50%',
-                  display: 'inline-block', animation: 'spin 0.7s linear infinite',
-                }} />
-                Saving...
-              </>
-            ) : '💾 Save Checklist Progress'}
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {currentDefs.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-dim)', fontSize: '0.875rem' }}>
-              No checklist items for this category.
-            </div>
-          ) : currentDefs.map((def) => {
-            const isChecked = !!checkedMap[def.key];
-            return (
-              <div
-                key={def.key}
-                onClick={() => handleToggleTask(def.key)}
-                role="checkbox"
-                aria-checked={isChecked}
-                tabIndex={0}
-                onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') handleToggleTask(def.key); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '0.75rem',
-                  padding: '0.85rem',
-                  borderRadius: 'var(--radius-sm)',
-                  background: isChecked ? 'rgba(59, 130, 246, 0.08)' : 'var(--bg-surface)',
-                  border: `1px solid ${isChecked ? '#3b82f6' : 'var(--border-color)'}`,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  outline: 'none',
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={isChecked}
-                  onChange={() => {}} // Handled by container click
-                  onClick={(e) => e.stopPropagation()}
-                  style={{ marginTop: '0.2rem', cursor: 'pointer', width: '16px', height: '16px' }}
-                />
-                <div style={{ flex: 1 }}>
-                  <div
-                    style={{
-                      fontSize: '0.9rem',
-                      fontWeight: 600,
-                      color: isChecked ? 'var(--text-primary)' : 'var(--text-muted)',
-                    }}
-                  >
-                    {def.label}
-                  </div>
-                  {def.description && (
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '0.2rem' }}>
-                      {def.description}
-                    </div>
-                  )}
+          return (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <div>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 0.25rem 0', color: 'var(--text-primary)' }}>
+                    {activeCategory} Checklist Items
+                  </h3>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+                    {isTimedOut ? (
+                      <span style={{ color: 'var(--ns-green)', fontWeight: 600 }}>
+                        🔒 Shift completed at {fmtTime(attendance.timeOut)}. All checklist duties are finalized and locked in read-only mode.
+                      </span>
+                    ) : attendance ? (
+                      'Select all verified duties. Time Out becomes available when all daily mandatory tasks are checked.'
+                    ) : (
+                      '⚠️ Record your Time In first to enable checklist saving.'
+                    )}
+                  </span>
                 </div>
-                {isChecked && (
-                  <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>✅</span>
-                )}
+
+                <button
+                  type="button"
+                  onClick={handleSaveChecklist}
+                  disabled={isPending || isChecklistDisabled}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    borderRadius: 'var(--radius-sm)',
+                    background: isChecklistDisabled ? 'var(--border-medium)' : 'var(--accent)',
+                    color: isChecklistDisabled ? 'var(--text-muted)' : '#fff',
+                    border: 'none',
+                    fontWeight: 600,
+                    fontSize: '0.85rem',
+                    cursor: isChecklistDisabled || isPending ? 'not-allowed' : 'pointer',
+                    opacity: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {isPending ? (
+                    <>
+                      <span style={{
+                        width: '12px', height: '12px', border: '2px solid rgba(255,255,255,0.4)',
+                        borderTopColor: '#fff', borderRadius: '50%',
+                        display: 'inline-block', animation: 'spin 0.7s linear infinite',
+                      }} />
+                      Saving...
+                    </>
+                  ) : isTimedOut ? (
+                    '🔒 Shift Finalized (Locked)'
+                  ) : (
+                    '💾 Save Checklist Progress'
+                  )}
+                </button>
               </div>
-            );
-          })}
-        </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {currentDefs.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-dim)', fontSize: '0.875rem' }}>
+                    No checklist items for this category.
+                  </div>
+                ) : currentDefs.map((def) => {
+                  const isChecked = !!checkedMap[def.key];
+                  return (
+                    <div
+                      key={def.key}
+                      onClick={() => {
+                        if (!isChecklistDisabled) handleToggleTask(def.key);
+                      }}
+                      role="checkbox"
+                      aria-checked={isChecked}
+                      aria-disabled={isChecklistDisabled}
+                      tabIndex={isChecklistDisabled ? -1 : 0}
+                      onKeyDown={(e) => {
+                        if (!isChecklistDisabled && (e.key === ' ' || e.key === 'Enter')) {
+                          handleToggleTask(def.key);
+                        }
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '0.75rem',
+                        padding: '0.85rem',
+                        borderRadius: 'var(--radius-sm)',
+                        background: isChecked ? 'rgba(59, 130, 246, 0.08)' : 'var(--bg-surface)',
+                        border: `1px solid ${isChecked ? '#3b82f6' : 'var(--border-color)'}`,
+                        cursor: isChecklistDisabled ? 'not-allowed' : 'pointer',
+                        opacity: isTimedOut ? 0.85 : 1,
+                        transition: 'all 0.15s ease',
+                        outline: 'none',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        disabled={isChecklistDisabled}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          if (!isChecklistDisabled) handleToggleTask(def.key);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          marginTop: '0.2rem',
+                          cursor: isChecklistDisabled ? 'not-allowed' : 'pointer',
+                          width: '16px',
+                          height: '16px',
+                        }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div
+                          style={{
+                            fontSize: '0.9rem',
+                            fontWeight: 600,
+                            color: isChecked ? 'var(--text-primary)' : 'var(--text-muted)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                          }}
+                        >
+                          <span>{def.label}</span>
+                          {isTimedOut && (
+                            <span
+                              style={{
+                                fontSize: '0.7rem',
+                                padding: '0.15rem 0.45rem',
+                                borderRadius: '4px',
+                                background: isChecked ? 'rgba(16, 185, 129, 0.12)' : 'rgba(107, 114, 128, 0.12)',
+                                color: isChecked ? '#059669' : '#6B7280',
+                                fontWeight: 700,
+                              }}
+                            >
+                              {isChecked ? 'Completed & Locked' : 'Locked'}
+                            </span>
+                          )}
+                        </div>
+                        {def.description && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '0.2rem' }}>
+                            {def.description}
+                          </div>
+                        )}
+                      </div>
+                      {isChecked && (
+                        <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>✅</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          );
+        })()}
       </div>
 
       <style>{`

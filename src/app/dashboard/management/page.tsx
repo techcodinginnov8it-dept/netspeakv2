@@ -1,6 +1,7 @@
 import { requirePermission } from '@/lib/auth/rbac';
 import { prisma } from '@/lib/db';
-import ManagementDashboard, { ManagementDashboardData } from '@/components/management/ManagementDashboard';
+import ManagementDashboard from '@/components/management/ManagementDashboard';
+import type { ManagementDashboardData } from '@/types/management';
 import { IncidentStatus, ResignationWorkflowStatus, SeatStatus, TicketStatus } from '@prisma/client';
 import { getLowBookingIntelligenceAction } from '@/actions/intelligence';
 
@@ -14,19 +15,28 @@ export default async function ManagementDashboardPage() {
   const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  // Batch 1: Teacher profiles, attendance, daily outputs
+  // Single consolidated parallel fetch with groupBy aggregations (replaces 30+ separate queries across 4 sequential stages)
   const [
-    totalTeachers,
-    approvedTeachers,
-    pendingTeachers,
+    teacherProfileGroups,
     attendancesToday,
     outputsToday,
     teachersByProject,
     teachersByDepartment,
+    teachersByBranch,
+    resignationGroups,
+    monthResignations,
+    allResignations,
+    newHireGroups,
+    lowBookingTeachers,
+    concernGroups,
+    concernsByCategory,
+    incidentGroups,
+    workstationGroups,
   ] = await Promise.all([
-    prisma.teacherProfile.count(),
-    prisma.teacherProfile.count({ where: { registrationStatus: 'APPROVED' } }),
-    prisma.teacherProfile.count({ where: { registrationStatus: 'PENDING' } }),
+    prisma.teacherProfile.groupBy({
+      by: ['registrationStatus'],
+      _count: { id: true },
+    }),
     prisma.teacherAttendance.findMany({
       where: { date: { gte: startOfDay, lte: endOfDay } },
       select: { status: true },
@@ -37,76 +47,114 @@ export default async function ManagementDashboardPage() {
     }),
     prisma.teacherProfile.groupBy({ by: ['projectType'], _count: { id: true } }),
     prisma.teacherProfile.groupBy({ by: ['department'], _count: { id: true } }),
-  ]);
-
-  // Batch 2: Resignations & Onboarding
-  const [
-    pendingResignations,
-    approvedResignations,
-    completedResignations,
-    monthResignations,
-    allResignations,
-    totalNewHires,
-    inProgressNewHires,
-    completedNewHires,
-    slotsEligibleNewHires,
-    overdueNewHires,
-  ] = await Promise.all([
-    prisma.teacherResignation.count({ where: { status: 'SUBMITTED' } }),
-    prisma.teacherResignation.count({
-      where: { status: { in: ['UNDER_REVIEW', 'EXIT_INTERVIEW_SCHEDULED', 'EXIT_INTERVIEW_COMPLETED', 'IT_CLEARANCE_PENDING'] as ResignationWorkflowStatus[] } },
+    prisma.teacherProfile.groupBy({ by: ['branch'], _count: { id: true } }),
+    // Resignation status grouping
+    prisma.teacherResignation.groupBy({
+      by: ['status'],
+      _count: { id: true },
     }),
-    prisma.teacherResignation.count({ where: { status: 'DEACTIVATED' } }),
     prisma.teacherResignation.count({ where: { createdAt: { gte: startOfMonth } } }),
     prisma.teacherResignation.findMany({
-      select: {
-        reason: true,
-        branch: true,
-      },
+      select: { reason: true, branch: true },
     }),
-    prisma.newHireRecord.count(),
-    prisma.newHireRecord.count({ where: { status: 'IN_PROGRESS' } }),
-    prisma.newHireRecord.count({ where: { status: 'COMPLETED' } }),
-    prisma.newHireRecord.count({ where: { status: 'SLOTS_ELIGIBLE' } }),
-    prisma.newHireRecord.count({ where: { status: 'OVERDUE' } }),
-  ]);
-
-  // Batch 3: Concerns, Incidents, Workstations & Intelligence
-  const lowBookingTeachers = await getLowBookingIntelligenceAction().catch(() => []);
-
-  const [
-    openConcernTickets,
-    resolvedConcernTickets,
-    totalConcernTickets,
-    openIncidents,
-    resolvedIncidents,
-    totalIncidents,
-    concernsByCategory,
-    totalWorkstations,
-    occupiedWorkstations,
-    availableWorkstations,
-    pendingReformatWorkstations,
-  ] = await Promise.all([
-    prisma.teacherConcernTicket.count({
-      where: { status: { in: ['SUBMITTED', 'ASSIGNED', 'UNDER_REVIEW'] as TicketStatus[] } },
+    // New hire status grouping
+    prisma.newHireRecord.groupBy({
+      by: ['status'],
+      _count: { id: true },
     }),
-    prisma.teacherConcernTicket.count({
-      where: { status: { in: ['RESOLVED', 'CLOSED'] as TicketStatus[] } },
+    getLowBookingIntelligenceAction().catch(() => []),
+    // Concerns grouping
+    prisma.teacherConcernTicket.groupBy({
+      by: ['status'],
+      _count: { id: true },
     }),
-    prisma.teacherConcernTicket.count(),
-    prisma.incidentReportTicket.count({
-      where: { status: { in: ['REPORTED', 'INVESTIGATING'] as IncidentStatus[] } },
-    }),
-    prisma.incidentReportTicket.count({
-      where: { status: { in: ['RESOLVED'] as IncidentStatus[] } },
-    }),
-    prisma.incidentReportTicket.count(),
     prisma.teacherConcernTicket.groupBy({ by: ['category'], _count: { id: true } }),
-    prisma.workstation.count(),
-    prisma.workstation.count({ where: { status: 'OCCUPIED' as SeatStatus } }),
-    prisma.workstation.count({ where: { status: 'AVAILABLE' as SeatStatus } }),
-    prisma.workstation.count({ where: { status: { in: ['PENDING_REFORMAT', 'UNDER_REFORMAT'] as SeatStatus[] } } }),
+    // Incident grouping
+    prisma.incidentReportTicket.groupBy({
+      by: ['status'],
+      _count: { id: true },
+    }),
+    // Workstations grouping
+    prisma.workstation.groupBy({
+      by: ['status'],
+      _count: { id: true },
+    }),
   ]);
+
+  // Derive teacher counts
+  let totalTeachers = 0;
+  let approvedTeachers = 0;
+  let pendingTeachers = 0;
+  for (const t of teacherProfileGroups) {
+    const c = t._count.id;
+    totalTeachers += c;
+    if (t.registrationStatus === 'APPROVED') approvedTeachers += c;
+    else if (t.registrationStatus === 'PENDING') pendingTeachers += c;
+  }
+
+  // Derive resignation counts
+  let pendingResignations = 0;
+  let approvedResignations = 0;
+  let completedResignations = 0;
+  for (const r of resignationGroups) {
+    const c = r._count.id;
+    if (r.status === 'SUBMITTED') pendingResignations += c;
+    else if (['UNDER_REVIEW', 'EXIT_INTERVIEW_SCHEDULED', 'EXIT_INTERVIEW_COMPLETED', 'IT_CLEARANCE_PENDING'].includes(r.status)) {
+      approvedResignations += c;
+    } else if (r.status === 'DEACTIVATED') {
+      completedResignations += c;
+    }
+  }
+
+  // Derive new hire counts
+  let totalNewHires = 0;
+  let inProgressNewHires = 0;
+  let completedNewHires = 0;
+  let slotsEligibleNewHires = 0;
+  let overdueNewHires = 0;
+  for (const nh of newHireGroups) {
+    const c = nh._count.id;
+    totalNewHires += c;
+    if (nh.status === 'IN_PROGRESS') inProgressNewHires += c;
+    else if (nh.status === 'COMPLETED') completedNewHires += c;
+    else if (nh.status === 'SLOTS_ELIGIBLE') slotsEligibleNewHires += c;
+    else if (nh.status === 'OVERDUE') overdueNewHires += c;
+  }
+
+  // Derive concern counts
+  let openConcernTickets = 0;
+  let resolvedConcernTickets = 0;
+  let totalConcernTickets = 0;
+  for (const ct of concernGroups) {
+    const c = ct._count.id;
+    totalConcernTickets += c;
+    if (['SUBMITTED', 'ASSIGNED', 'UNDER_REVIEW'].includes(ct.status)) openConcernTickets += c;
+    else if (['RESOLVED', 'CLOSED'].includes(ct.status)) resolvedConcernTickets += c;
+  }
+
+  // Derive incident counts
+  let openIncidents = 0;
+  let resolvedIncidents = 0;
+  let totalIncidents = 0;
+  for (const inc of incidentGroups) {
+    const c = inc._count.id;
+    totalIncidents += c;
+    if (['REPORTED', 'INVESTIGATING'].includes(inc.status)) openIncidents += c;
+    else if (inc.status === 'RESOLVED') resolvedIncidents += c;
+  }
+
+  // Derive workstation counts
+  let totalWorkstations = 0;
+  let occupiedWorkstations = 0;
+  let availableWorkstations = 0;
+  let pendingReformatWorkstations = 0;
+  for (const ws of workstationGroups) {
+    const c = ws._count.id;
+    totalWorkstations += c;
+    if (ws.status === 'OCCUPIED') occupiedWorkstations += c;
+    else if (ws.status === 'AVAILABLE') availableWorkstations += c;
+    else if (['PENDING_REFORMAT', 'UNDER_REFORMAT'].includes(ws.status)) pendingReformatWorkstations += c;
+  }
 
   // Aggregate attendance
   const presentCount = attendancesToday.filter((a) =>
@@ -145,9 +193,9 @@ export default async function ManagementDashboardPage() {
       activeTeachers: approvedTeachers,
       onLeaveTeachers: pendingTeachers,
       resignedTeachers: completedResignations,
-      branchBreakdown: resBranchBreakdown.length > 0
-        ? resBranchBreakdown
-        : [{ branch: 'No resignation data', count: 0 }],
+      branchBreakdown: teachersByBranch
+        .map((b) => ({ branch: b.branch ?? 'Unassigned', count: b._count.id }))
+        .sort((a, b) => b.count - a.count),
       projectBreakdown: teachersByProject.map((p) => ({
         project: String(p.projectType),
         count: p._count.id,

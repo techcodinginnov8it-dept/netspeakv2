@@ -180,25 +180,29 @@ async function AdminStatsSection({ userId }: { userId: string }) {
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
 
   const [
-    totalTeachers, approvedTeachers, pendingTeachers, underReviewTeachers,
-    domesticTeachers, overseasTeachers, ftTeachers, ftexTeachers, ttpTeachers,
-    todayPresentCount, todayLateCount, todayAbsentCount, past7DaysAttendance,
-    openConcerns, pendingETO, pendingSRD, activeResignations,
-    inProgressOnboarding, occupiedSeats, totalSeats, pendingReformatSeats, availableSeats,
-    activeAnnouncementsCount, openIncidents,
+    teacherProfileGroups,
+    todayAttendanceGroups,
+    past7DaysAttendance,
+    openConcerns,
+    pendingETO,
+    pendingSRD,
+    activeResignations,
+    inProgressOnboarding,
+    workstationGroups,
+    activeAnnouncementsCount,
+    openIncidents,
   ] = await Promise.all([
-    prisma.teacherProfile.count(),
-    prisma.teacherProfile.count({ where: { registrationStatus: 'APPROVED' } }),
-    prisma.teacherProfile.count({ where: { registrationStatus: 'PENDING' } }),
-    prisma.teacherProfile.count({ where: { registrationStatus: 'UNDER_REVIEW' } }),
-    prisma.teacherProfile.count({ where: { department: 'DOMESTIC', registrationStatus: 'APPROVED' } }),
-    prisma.teacherProfile.count({ where: { department: 'OVERSEAS', registrationStatus: 'APPROVED' } }),
-    prisma.teacherProfile.count({ where: { projectType: 'FT', registrationStatus: 'APPROVED' } }),
-    prisma.teacherProfile.count({ where: { projectType: 'FTEX', registrationStatus: 'APPROVED' } }),
-    prisma.teacherProfile.count({ where: { projectType: 'TTP', registrationStatus: 'APPROVED' } }),
-    prisma.teacherAttendance.count({ where: { date: today, status: 'PRESENT' } }),
-    prisma.teacherAttendance.count({ where: { date: today, status: 'LATE' } }),
-    prisma.teacherAttendance.count({ where: { date: today, status: { in: ['ABSENT_VALID', 'ABSENT_INVALID'] } } }),
+    // Grouped 1-query aggregation for all TeacherProfile stats (replaces 9 queries)
+    prisma.teacherProfile.groupBy({
+      by: ['registrationStatus', 'department', 'projectType'],
+      _count: { id: true },
+    }),
+    // Grouped 1-query aggregation for today's attendance (replaces 3 queries)
+    prisma.teacherAttendance.groupBy({
+      by: ['status'],
+      where: { date: today },
+      _count: { id: true },
+    }),
     prisma.teacherAttendance.findMany({
       where: { date: { gte: sevenDaysAgo, lte: today } },
       select: { date: true, status: true, isLate: true },
@@ -208,13 +212,68 @@ async function AdminStatsSection({ userId }: { userId: string }) {
     prisma.switchRestDayRequest.count({ where: { status: 'PENDING' } }),
     prisma.teacherResignation.count({ where: { status: { notIn: ['DEACTIVATED', 'WITHDRAWN'] } } }),
     prisma.newHireRecord.count({ where: { status: 'IN_PROGRESS' } }),
-    prisma.workstation.count({ where: { status: 'OCCUPIED' } }),
-    prisma.workstation.count(),
-    prisma.workstation.count({ where: { status: 'PENDING_REFORMAT' } }),
-    prisma.workstation.count({ where: { status: 'AVAILABLE' } }),
+    // Grouped 1-query aggregation for workstation seats (replaces 4 queries)
+    prisma.workstation.groupBy({
+      by: ['status'],
+      _count: { id: true },
+    }),
     prisma.announcement.count({ where: { isActive: true } }),
     prisma.incidentReportTicket.count({ where: { status: { in: ['REPORTED', 'INVESTIGATING'] } } }),
   ]);
+
+  // Derive teacher metrics in-memory from the consolidated group data
+  let totalTeachers = 0;
+  let approvedTeachers = 0;
+  let pendingTeachers = 0;
+  let underReviewTeachers = 0;
+  let domesticTeachers = 0;
+  let overseasTeachers = 0;
+  let ftTeachers = 0;
+  let ftexTeachers = 0;
+  let ttpTeachers = 0;
+
+  for (const g of teacherProfileGroups) {
+    const c = g._count.id;
+    totalTeachers += c;
+    if (g.registrationStatus === 'APPROVED') {
+      approvedTeachers += c;
+      if (g.department === 'DOMESTIC') domesticTeachers += c;
+      if (g.department === 'OVERSEAS') overseasTeachers += c;
+      if (g.projectType === 'FT') ftTeachers += c;
+      if (g.projectType === 'FTEX') ftexTeachers += c;
+      if (g.projectType === 'TTP') ttpTeachers += c;
+    } else if (g.registrationStatus === 'PENDING') {
+      pendingTeachers += c;
+    } else if (g.registrationStatus === 'UNDER_REVIEW') {
+      underReviewTeachers += c;
+    }
+  }
+
+  // Derive today's attendance in-memory from grouped counts
+  let todayPresentCount = 0;
+  let todayLateCount = 0;
+  let todayAbsentCount = 0;
+
+  for (const a of todayAttendanceGroups) {
+    const c = a._count.id;
+    if (a.status === 'PRESENT') todayPresentCount += c;
+    else if (a.status === 'LATE') todayLateCount += c;
+    else if (a.status === 'ABSENT_VALID' || a.status === 'ABSENT_INVALID') todayAbsentCount += c;
+  }
+
+  // Derive workstation counts in-memory from grouped counts
+  let occupiedSeats = 0;
+  let totalSeats = 0;
+  let pendingReformatSeats = 0;
+  let availableSeats = 0;
+
+  for (const w of workstationGroups) {
+    const c = w._count.id;
+    totalSeats += c;
+    if (w.status === 'OCCUPIED') occupiedSeats += c;
+    else if (w.status === 'PENDING_REFORMAT') pendingReformatSeats += c;
+    else if (w.status === 'AVAILABLE') availableSeats += c;
+  }
 
   const totalPresentOrLate = todayPresentCount + todayLateCount;
 
@@ -292,16 +351,16 @@ async function AdminStatsSection({ userId }: { userId: string }) {
       {/* Operational stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(195px, 1fr))', gap: '0.85rem', marginBottom: '0.85rem' }}>
         <StatCard icon="🕐" label="Present Today"      value={totalPresentOrLate} sub="Present or late today"         accent="teal"   href="/dashboard/attendance" />
-        <StatCard icon="🎫" label="Open Concerns"      value={openConcerns}      sub="Unresolved concern tickets"    accent="gold"   href="/dashboard/concerns" />
+        <StatCard icon="🎫" label="Open Concerns"      value={openConcerns}      sub="Unresolved concern tickets"    accent="gold"   href="/dashboard/concerns/manage" />
         <StatCard icon="📋" label="Pending Requests"   value={pendingETO + pendingSRD} sub={`${pendingETO} ETO · ${pendingSRD} SRD`} accent="violet" href="/dashboard/requests" />
-        <StatCard icon="🚨" label="Open Incidents"     value={openIncidents}     sub="Reported or investigating"     accent="red"    href="/dashboard/concerns" />
+        <StatCard icon="🚨" label="Open Incidents"     value={openIncidents}     sub="Reported or investigating"     accent="red"    href="/dashboard/concerns/manage" />
       </div>
 
       {/* Pipeline stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(195px, 1fr))', gap: '0.85rem', marginBottom: '1.75rem' }}>
-        <StatCard icon="📤" label="Active Resignations" value={activeResignations}   sub="In offboarding pipeline"   accent="red"    href="/dashboard/resignation" />
-        <StatCard icon="🎓" label="Onboarding Active"   value={inProgressOnboarding} sub="New hire checklist in progress" accent="blue" href="/dashboard/onboarding" />
-        <StatCard icon="💻" label="Seats Occupied"      value={`${occupiedSeats} / ${totalSeats}`} sub={`${pendingReformatSeats} pending reformat`} accent="teal" href="/dashboard/seating" />
+        <StatCard icon="📤" label="Active Resignations" value={activeResignations}   sub="In offboarding pipeline"   accent="red"    href="/dashboard/resignation/monitoring" />
+        <StatCard icon="🎓" label="Onboarding Active"   value={inProgressOnboarding} sub="New hire checklist in progress" accent="blue" href="/dashboard/onboarding/manage" />
+        <StatCard icon="💻" label="Seats Occupied"      value={`${occupiedSeats} / ${totalSeats}`} sub={`${pendingReformatSeats} pending reformat`} accent="teal" href="/dashboard/seating/manage" />
         <StatCard icon="📢" label="Announcements"       value={activeAnnouncementsCount} sub="Active notices"        accent="gold"   href="/dashboard/announcements" />
       </div>
 
@@ -315,6 +374,7 @@ async function TeacherDirectorySection({ canReadUsers }: { canReadUsers: boolean
   if (!canReadUsers) return null;
 
   const teacherDirectoryList = await prisma.teacherProfile.findMany({
+    take: 25,
     orderBy: { createdAt: 'desc' },
     include: {
       user: {
@@ -364,8 +424,13 @@ export default async function DashboardPage() {
   if (isTeacherUser) {
     try {
       teacherProfile = await prisma.teacherProfile.findFirst({
-        where: { userId: user.id },
-        include: { shiftSchedule: true },
+        where: {
+          OR: [
+            { userId: user.id },
+            { contactEmail: { equals: user.email, mode: 'insensitive' } },
+          ],
+        },
+        include: { shiftSchedule: true, newHireRecord: true },
       });
 
       if (teacherProfile) {
@@ -457,6 +522,51 @@ export default async function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Teacher Onboarding Progress Banner ── */}
+      {teacherProfile?.newHireRecord && (!teacherProfile.newHireRecord.slotsEligible || teacherProfile.newHireRecord.status !== 'COMPLETED') && (
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(0,82,204,0.08) 0%, rgba(16,185,129,0.08) 100%)',
+          border: '1px solid rgba(0,82,204,0.25)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '1.25rem 1.5rem',
+          marginBottom: '1.75rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1rem',
+        }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ fontSize: '1.25rem' }}>🎓</span>
+              <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '1rem' }}>
+                New Hire Onboarding in Progress ({teacherProfile.newHireRecord.completionPct}% complete)
+              </span>
+            </div>
+            <p style={{ margin: '0.25rem 0 0', color: 'var(--text-dim)', fontSize: '0.85rem' }}>
+              Complete all 18 requirements and 3-day minimum compliance window to qualify for class slot opening.
+            </p>
+          </div>
+          <Link
+            href="/dashboard/onboarding"
+            style={{
+              background: 'var(--ns-blue)',
+              color: '#fff',
+              padding: '0.5rem 1rem',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+            }}
+          >
+            <span>📋</span> View My Onboarding &rarr;
+          </Link>
+        </div>
+      )}
 
       {/* ── Teacher Attendance Widget ── */}
       {teacherProfile && (

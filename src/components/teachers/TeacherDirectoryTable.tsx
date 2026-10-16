@@ -35,31 +35,59 @@ export default function TeacherDirectoryTable({
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const FILTER_LABELS: Record<string, string> = {
-    ALL:         'All Applicants',
-    PENDING:     'Pending Review',
-    UNDER_REVIEW: 'Under Review',
-    APPROVED:    'Approved',
-    REJECTED:    'Rejected',
+  const FILTER_CONFIG: Array<{ id: string; label: string }> = [
+    { id: 'ALL',          label: 'All Applicants' },
+    { id: 'PENDING',      label: 'Pending' },
+    { id: 'UNDER_REVIEW', label: 'Under Review' },
+    { id: 'APPROVED',     label: 'Approved' },
+    { id: 'REJECTED',     label: 'Rejected' },
+  ];
+
+  const normalizeStatus = (status?: string | null): string => {
+    if (!status) return 'PENDING';
+    const s = status.trim().toUpperCase();
+    if (s === 'PENDING' || s === 'PENDING REVIEW' || s === 'PENDING_REVIEW') return 'PENDING';
+    if (s === 'UNDER_REVIEW' || s === 'UNDER REVIEW') return 'UNDER_REVIEW';
+    if (s === 'APPROVED' || s === 'ACTIVE') return 'APPROVED';
+    if (s === 'REJECTED') return 'REJECTED';
+    return s;
+  };
+
+  const matchesStatus = (t: TeacherItem, statusFilter: string): boolean => {
+    if (statusFilter === 'ALL') return true;
+    return normalizeStatus(t.registrationStatus) === statusFilter;
+  };
+
+  const matchesSearch = (t: TeacherItem, query: string): boolean => {
+    if (!query.trim()) return true;
+    const q = query.trim().toLowerCase();
+    return Boolean(
+      (t.displayName && t.displayName.toLowerCase().includes(q)) ||
+      (t.realFullName && t.realFullName.toLowerCase().includes(q)) ||
+      (t.cellphone && t.cellphone.toLowerCase().includes(q)) ||
+      (t.branch && t.branch.toLowerCase().includes(q)) ||
+      (t.department && t.department.toLowerCase().includes(q)) ||
+      (t.projectType && t.projectType.toLowerCase().includes(q)) ||
+      (t.user?.username && t.user.username.toLowerCase().includes(q))
+    );
+  };
+
+  // Live counts for status buttons
+  const counts = {
+    ALL: teachers.filter(t => matchesSearch(t, searchQuery)).length,
+    PENDING: teachers.filter(t => matchesStatus(t, 'PENDING') && matchesSearch(t, searchQuery)).length,
+    UNDER_REVIEW: teachers.filter(t => matchesStatus(t, 'UNDER_REVIEW') && matchesSearch(t, searchQuery)).length,
+    APPROVED: teachers.filter(t => matchesStatus(t, 'APPROVED') && matchesSearch(t, searchQuery)).length,
+    REJECTED: teachers.filter(t => matchesStatus(t, 'REJECTED') && matchesSearch(t, searchQuery)).length,
   };
 
   const filteredTeachers = teachers.filter((t) => {
-    if (filterStatus !== 'ALL' && t.registrationStatus !== filterStatus) {
-      return false;
-    }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      return (
-        t.displayName.toLowerCase().includes(q) ||
-        t.realFullName.toLowerCase().includes(q) ||
-        t.cellphone.includes(q)
-      );
-    }
-    return true;
+    return matchesStatus(t, filterStatus) && matchesSearch(t, searchQuery);
   });
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
+    const s = normalizeStatus(status);
+    switch (s) {
       case 'APPROVED':
         return (
           <span className="badge badge-green" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
@@ -81,7 +109,7 @@ export default function TeacherDirectoryTable({
       default:
         return (
           <span className="badge badge-gold" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
-            ⏳ Pending Review
+            ⏳ Pending
           </span>
         );
     }
@@ -92,8 +120,9 @@ export default function TeacherDirectoryTable({
       {/* Filters Bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {['ALL', 'PENDING', 'UNDER_REVIEW', 'APPROVED', 'REJECTED'].map((st) => {
+          {FILTER_CONFIG.map(({ id: st, label }) => {
             const isActive = filterStatus === st;
+            const count = counts[st as keyof typeof counts] ?? 0;
             return (
               <button
                 key={st}
@@ -105,24 +134,60 @@ export default function TeacherDirectoryTable({
                   fontSize: '0.85rem',
                   fontWeight: isActive ? 600 : 500,
                   transition: 'all 0.15s ease',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
                   ...(isActive ? { color: '#FFFFFF' } : {}),
                 }}
               >
-                {FILTER_LABELS[st] ?? st}
+                <span>{label}</span>
+                <span
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '1px 6px',
+                    borderRadius: '999px',
+                    fontWeight: 700,
+                    background: isActive ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.06)',
+                    color: isActive ? '#FFFFFF' : 'var(--foreground-muted)',
+                  }}
+                >
+                  {count}
+                </span>
               </button>
             );
           })}
         </div>
 
-        <div style={{ width: 260 }}>
+        <div style={{ position: 'relative', width: 280 }}>
           <input
             type="text"
             className="input"
-            placeholder="Search by name or phone..."
+            placeholder="Search by name, phone, branch..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ padding: '6px 12px', fontSize: '0.85rem' }}
+            style={{ padding: '6px 30px 6px 12px', fontSize: '0.85rem', width: '100%' }}
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              style={{
+                position: 'absolute',
+                right: '8px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--foreground-muted)',
+                fontSize: '0.85rem',
+                padding: '2px',
+              }}
+              title="Clear search"
+            >
+              ✕
+            </button>
+          )}
         </div>
       </div>
 

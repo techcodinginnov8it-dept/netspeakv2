@@ -36,6 +36,8 @@ export type AvailableTeacher = {
   projectType: string;
 };
 
+import { BRANCH_NAMES } from '@/lib/branches';
+
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 const STATUS_CFG: Record<SeatStatus, { label: string; bg: string; border: string; text: string; icon: string }> = {
@@ -46,7 +48,6 @@ const STATUS_CFG: Record<SeatStatus, { label: string; bg: string; border: string
   RESERVED:         { label: 'Reserved',         bg: 'rgba(125,110,216,0.10)',border: 'rgba(125,110,216,0.3)',text: '#6D28D9', icon: '🔒' },
 };
 
-const BRANCHES = ['Main Branch', 'Branch 2'];
 const UNASSIGN_REASONS = ['MANUAL', 'TRANSFER', 'RESIGNED', 'AWOL'] as const;
 type UnassignReason = typeof UNASSIGN_REASONS[number];
 
@@ -60,7 +61,25 @@ export default function SeatingManagementDesk({
   availableTeachers: AvailableTeacher[];
 }) {
   const [workstations, setWorkstations] = useState<WorkstationItem[]>(initialWorkstations);
-  const [activeBranch, setActiveBranch] = useState<string>(BRANCHES[0]);
+
+  // Compute available branches, including both official branches and any branches present in workstations
+  const availableBranches = useMemo(() => {
+    const list = [...BRANCH_NAMES];
+    workstations.forEach((w) => {
+      if (w.branch && !list.includes(w.branch)) {
+        list.push(w.branch);
+      }
+    });
+    return list;
+  }, [workstations]);
+
+  const [activeBranch, setActiveBranch] = useState<string>(() => {
+    if (initialWorkstations.length > 0) {
+      // Default to first workstation branch or first official branch
+      return initialWorkstations[0].branch || BRANCH_NAMES[0];
+    }
+    return BRANCH_NAMES[0];
+  });
   const [isPending, startTransition] = useTransition();
 
   // Modal states
@@ -76,7 +95,7 @@ export default function SeatingManagementDesk({
   const [unassignReason, setUnassignReason] = useState<UnassignReason>('MANUAL');
   const [newStatus, setNewStatus] = useState<SeatStatus>(SeatStatus.AVAILABLE);
   const [newNotes, setNewNotes] = useState('');
-  const [addBranch, setAddBranch] = useState('Main Branch');
+  const [addBranch, setAddBranch] = useState<string>(BRANCH_NAMES[0]);
   const [addWsNo, setAddWsNo] = useState('');
   const [addSeatNo, setAddSeatNo] = useState('');
   const [addSpecs, setAddSpecs] = useState('');
@@ -86,9 +105,6 @@ export default function SeatingManagementDesk({
     setToast({ msg, ok });
     setTimeout(() => setToast(null), 3500);
   };
-
-  // Reload data from server after mutation
-  const refresh = () => window.location.reload();
 
   // Branch-filtered workstations
   const branchWs = useMemo(
@@ -121,40 +137,88 @@ export default function SeatingManagementDesk({
 
   function handleAssign() {
     if (!assignModal || !assignTeacherId) return;
+    const targetWsId = assignModal.id;
+    const teacher = availableTeachers.find((t) => t.id === assignTeacherId);
+    const teacherName = teacher?.realFullName || teacher?.displayName || 'Teacher';
+
     startTransition(async () => {
       const res = await assignTeacherToSeatAction({
-        workstationId: assignModal.id,
+        workstationId: targetWsId,
         teacherId: assignTeacherId,
         schedule: assignSchedule,
       });
       if (res.error) { showToast(res.error, false); return; }
       showToast('Teacher assigned successfully.');
+      setWorkstations((prev) =>
+        prev.map((w) =>
+          w.id === targetWsId
+            ? {
+                ...w,
+                status: SeatStatus.OCCUPIED,
+                assignment: {
+                  id: 'assignment-' + Date.now(),
+                  teacherId: assignTeacherId,
+                  teacherName,
+                  schedule: assignSchedule || null,
+                  assignedAt: new Date().toISOString(),
+                },
+              }
+            : w
+        )
+      );
       setAssignModal(null);
       setAssignTeacherId('');
       setAssignSchedule('');
-      refresh();
     });
   }
 
   function handleUnassign() {
     if (!unassignModal) return;
+    const targetWsId = unassignModal.id;
+    const resultingStatus =
+      unassignReason === 'RESIGNED' || unassignReason === 'AWOL'
+        ? SeatStatus.PENDING_REFORMAT
+        : SeatStatus.AVAILABLE;
+
     startTransition(async () => {
-      const res = await unassignTeacherAction(unassignModal.id, unassignReason);
+      const res = await unassignTeacherAction(targetWsId, unassignReason);
       if (res.error) { showToast(res.error, false); return; }
-      showToast(`Teacher unassigned. Workstation marked ${unassignReason === 'RESIGNED' || unassignReason === 'AWOL' ? 'PENDING_REFORMAT' : 'AVAILABLE'}.`);
+      showToast(`Teacher unassigned. Workstation marked ${resultingStatus}.`);
+      setWorkstations((prev) =>
+        prev.map((w) =>
+          w.id === targetWsId
+            ? {
+                ...w,
+                status: resultingStatus,
+                assignment: null,
+              }
+            : w
+        )
+      );
       setUnassignModal(null);
-      refresh();
     });
   }
 
   function handleStatusUpdate() {
     if (!statusModal) return;
+    const targetWsId = statusModal.id;
+
     startTransition(async () => {
-      const res = await updateWorkstationStatusAction(statusModal.id, newStatus, newNotes);
+      const res = await updateWorkstationStatusAction(targetWsId, newStatus, newNotes);
       if (res.error) { showToast(res.error, false); return; }
       showToast('Workstation status updated.');
+      setWorkstations((prev) =>
+        prev.map((w) =>
+          w.id === targetWsId
+            ? {
+                ...w,
+                status: newStatus,
+                notes: newNotes || null,
+              }
+            : w
+        )
+      );
       setStatusModal(null);
-      refresh();
     });
   }
 
@@ -163,9 +227,20 @@ export default function SeatingManagementDesk({
       const res = await addWorkstationAction({ branch: addBranch, workstationNo: addWsNo, seatNo: addSeatNo, specs: addSpecs });
       if (res.error) { showToast(res.error, false); return; }
       showToast('Workstation added.');
+      const newWsItem: WorkstationItem = {
+        id: res.workstation?.id || 'ws-' + Date.now(),
+        branch: addBranch,
+        workstationNo: addWsNo,
+        seatNo: addSeatNo,
+        specs: addSpecs || null,
+        status: SeatStatus.AVAILABLE,
+        notes: null,
+        assignment: null,
+      };
+      setWorkstations((prev) => [...prev, newWsItem]);
+      setActiveBranch(addBranch);
       setAddModal(false);
       setAddWsNo(''); setAddSeatNo(''); setAddSpecs('');
-      refresh();
     });
   }
 
@@ -175,7 +250,7 @@ export default function SeatingManagementDesk({
       const res = await deleteWorkstationAction(ws.id);
       if (res.error) { showToast(res.error, false); return; }
       showToast('Workstation deleted.');
-      refresh();
+      setWorkstations((prev) => prev.filter((w) => w.id !== ws.id));
     });
   }
 
@@ -236,8 +311,8 @@ export default function SeatingManagementDesk({
       </div>
 
       {/* Branch Tabs */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0' }}>
-        {BRANCHES.map((b) => (
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0', overflowX: 'auto' }}>
+        {availableBranches.map((b) => (
           <button
             key={b}
             onClick={() => setActiveBranch(b)}
@@ -252,6 +327,7 @@ export default function SeatingManagementDesk({
               fontWeight: activeBranch === b ? 600 : 400,
               fontSize: '0.875rem', cursor: 'pointer',
               marginBottom: '-1px',
+              whiteSpace: 'nowrap',
             }}
           >
             {b}
@@ -492,7 +568,7 @@ export default function SeatingManagementDesk({
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={labelStyle}>Branch <span style={{ color: 'var(--danger)' }}>*</span></label>
               <select value={addBranch} onChange={(e) => setAddBranch(e.target.value)} style={inputStyle}>
-                {BRANCHES.map((b) => <option key={b} value={b}>{b}</option>)}
+                {availableBranches.map((b) => <option key={b} value={b}>{b}</option>)}
               </select>
             </div>
             <div>

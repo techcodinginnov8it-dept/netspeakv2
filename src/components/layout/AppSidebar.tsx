@@ -143,7 +143,8 @@ export default function AppSidebar({
 
   const showRequestsLink = canSubmitRequests || canApproveRequests;
   const showOutputLink   = canSubmitOutput || canReadOutput;
-  const showAdmin        = canManageUsers || canManageOnboarding || canManageTickets || canManageSeating || canManageOperations;
+  const isSuperAdmin     = user.roles.includes('SYSTEM_ADMINISTRATOR') || user.roles.includes('ADMIN');
+  const showAdmin        = canManageUsers || canManageOnboarding || canManageTickets || canManageSeating || canManageOperations || isSuperAdmin;
   const primaryRole      = user.roles[0] || 'USER';
 
   return (
@@ -243,7 +244,7 @@ export default function AppSidebar({
         {canViewSeating && !canManageSeating && <NavItem href="/dashboard/seating" icon="🪑" label="My Seat Assignment" accent="violet" />}
         {canViewOnboarding && !canManageOnboarding && <NavItem href="/dashboard/onboarding" icon="📋" label="My Onboarding" accent="green" />}
         {user.roles.includes('TEACHER') && <NavItem href="/dashboard/certificate" icon="📜" label="My Certificate" accent="gold" />}
-        {canReadNotifications && <NavItem href="/dashboard/notifications" icon="🔔" label="Notifications" accent="gold" />}
+        {canReadNotifications && <NavItem href="/dashboard/notifications" icon="🔔" label="Alert Center" accent="gold" />}
         {canViewReports && <NavItem href="/dashboard/reports" icon="📈" label="Reports & Cut-Offs" accent="green" />}
 
         {canManageSimulations && (
@@ -263,11 +264,10 @@ export default function AppSidebar({
             {canManageShifts && <NavItem href="/dashboard/shifts" icon="🕐" label="Shift Schedules" accent="green" />}
             <NavItem href="/dashboard/teachers" icon="👩‍🏫" label="Teacher Management" accent="blue" />
             {canManageResignation && <NavItem href="/dashboard/resignation/monitoring" icon="📋" label="Resignation Monitoring" accent="red" />}
-            {canManageAnnouncements && <NavItem href="/dashboard/announcements" icon="📢" label="Announcements" accent="gold" />}
             {canManageTickets && <NavItem href="/dashboard/concerns/manage" icon="🗂️" label="Ticketing Desk" accent="gold" />}
             {canManageSeating && <NavItem href="/dashboard/seating/manage" icon="🗺️" label="Seating Arrangement" accent="violet" />}
             {canManageUsers && <NavItem href="/dashboard/users" icon="👥" label="User Management" accent="blue" />}
-            {canBroadcastNotifications && <NavItem href="/dashboard/notifications" icon="📡" label="Broadcast Alerts" accent="gold" />}
+            {isSuperAdmin && <NavItem href="/dashboard/subscription" icon="💳" label="Subscription & Billing" accent="gold" />}
           </>
         )}
 

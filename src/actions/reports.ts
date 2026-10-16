@@ -55,6 +55,18 @@ export interface CutOffReportData {
   rows: TeacherCutOffRow[];
 }
 
+function parseDateRange(startDateStr: string, endDateStr: string) {
+  const sOnly = startDateStr.split('T')[0];
+  const eOnly = endDateStr.split('T')[0];
+  const [sYear, sMonth, sDay] = sOnly.split('-').map(Number);
+  const [eYear, eMonth, eDay] = eOnly.split('-').map(Number);
+
+  // Inclusive window covering both UTC-stored (00:00:00Z) and Manila-stored (16:00:00Z prev day) records
+  const start = new Date(Date.UTC(sYear, sMonth - 1, sDay - 1, 12, 0, 0, 0));
+  const end = new Date(Date.UTC(eYear, eMonth - 1, eDay, 23, 59, 59, 999));
+  return { start, end, sOnly, eOnly };
+}
+
 /**
  * Generates consolidated Teacher Cut-Off / Operational Report
  */
@@ -62,11 +74,7 @@ export async function getCutOffReportAction(params: CutOffFilterParams): Promise
   try {
     await requirePermission(PERMISSIONS.REPORTS_VIEW);
 
-    const start = new Date(params.startDate);
-    start.setHours(0, 0, 0, 0);
-
-    const end = new Date(params.endDate);
-    end.setHours(23, 59, 59, 999);
+    const { start, end, sOnly, eOnly } = parseDateRange(params.startDate, params.endDate);
 
     // Fetch penalty settings
     const penaltyAbsenceSetting = await prisma.systemSetting.findUnique({
@@ -126,15 +134,25 @@ export async function getCutOffReportAction(params: CutOffFilterParams): Promise
       let totalLateMinutes = 0;
 
       for (const att of t.attendances) {
-        if (att.status === AttendanceStatus.PRESENT) presentDays++;
-        if (att.status === AttendanceStatus.LATE) {
+        if (att.status === AttendanceStatus.PRESENT || att.status === AttendanceStatus.LATE || att.status === AttendanceStatus.EARLY_OUT) {
+          presentDays++;
+        }
+        if (att.status === AttendanceStatus.LATE || att.isLate) {
           lateDays++;
           totalLateMinutes += att.lateMinutes || 0;
         }
-        if (att.status === AttendanceStatus.EARLY_OUT) earlyOutDays++;
-        if (att.status === AttendanceStatus.ABSENT_INVALID || att.status === AttendanceStatus.ABSENT_VALID) absentDays++;
-        if (att.status === AttendanceStatus.SRD) srdDays++;
-        if (att.status === AttendanceStatus.NO_LOGOUT) noLogoutDays++;
+        if (att.status === AttendanceStatus.EARLY_OUT || att.isEarlyOut) {
+          earlyOutDays++;
+        }
+        if (att.status === AttendanceStatus.ABSENT_INVALID || att.status === AttendanceStatus.ABSENT_VALID) {
+          absentDays++;
+        }
+        if (att.status === AttendanceStatus.SRD) {
+          srdDays++;
+        }
+        if (att.status === AttendanceStatus.NO_LOGOUT) {
+          noLogoutDays++;
+        }
       }
 
       let totalSlotsRendered = 0;
@@ -193,14 +211,14 @@ export async function getCutOffReportAction(params: CutOffFilterParams): Promise
       totalPenaltiesPhp: rows.reduce((acc, r) => acc + r.netEstimatedPenaltyPhp, 0),
     };
 
-    const periodLabel = `${start.toLocaleDateString()} to ${end.toLocaleDateString()}`;
+    const periodLabel = `${sOnly} to ${eOnly}`;
 
     return {
       success: true,
       data: {
         periodLabel,
-        startDate: params.startDate,
-        endDate: params.endDate,
+        startDate: sOnly,
+        endDate: eOnly,
         summary,
         rows,
       },
@@ -229,19 +247,27 @@ export interface StaffOperationsReportRow {
 /**
  * Generates Admin & IT Staff Operations and Checklist Compliance Report
  */
-export async function getStaffOperationsReportAction(params: { startDate: string; endDate: string; roleType?: string }): Promise<{ success: boolean; data?: StaffOperationsReportRow[]; error?: string }> {
+export async function getStaffOperationsReportAction(params: {
+  startDate: string;
+  endDate: string;
+  roleType?: string;
+  branch?: string;
+  department?: string;
+}): Promise<{ success: boolean; data?: StaffOperationsReportRow[]; error?: string }> {
   try {
     await requirePermission(PERMISSIONS.REPORTS_VIEW);
 
-    const start = new Date(params.startDate);
-    start.setHours(0, 0, 0, 0);
-
-    const end = new Date(params.endDate);
-    end.setHours(23, 59, 59, 999);
+    const { start, end } = parseDateRange(params.startDate, params.endDate);
 
     const whereStaff: any = {};
     if (params.roleType && params.roleType !== 'ALL') {
       whereStaff.roleType = params.roleType;
+    }
+    if (params.branch && params.branch !== 'ALL') {
+      whereStaff.branch = params.branch;
+    }
+    if (params.department && params.department !== 'ALL') {
+      whereStaff.department = params.department;
     }
 
     const staffProfiles = await prisma.staffProfile.findMany({
@@ -265,13 +291,19 @@ export async function getStaffOperationsReportAction(params: { startDate: string
       let totalLateMinutes = 0;
 
       for (const att of s.attendances) {
-        if (att.status === 'PRESENT') presentShifts++;
-        if (att.status === 'LATE') {
+        if (att.status === 'PRESENT' || att.status === 'LATE' || att.status === 'EARLY_OUT' || att.status === 'NO_LOGOUT') {
+          presentShifts++;
+        }
+        if (att.status === 'LATE' || att.isLate) {
           lateShifts++;
           totalLateMinutes += att.lateMinutes || 0;
         }
-        if (att.status === 'ABSENT') absentShifts++;
-        if (att.isChecklistComplete) completedChecklists++;
+        if (att.status === 'ABSENT') {
+          absentShifts++;
+        }
+        if (att.isChecklistComplete) {
+          completedChecklists++;
+        }
       }
 
       const totalShifts = s.attendances.length;
@@ -279,7 +311,7 @@ export async function getStaffOperationsReportAction(params: { startDate: string
 
       return {
         staffId: s.id,
-        name: s.user.fullName,
+        name: s.user?.fullName || 'Staff Member',
         roleType: s.roleType,
         branch: s.branch,
         department: s.department,

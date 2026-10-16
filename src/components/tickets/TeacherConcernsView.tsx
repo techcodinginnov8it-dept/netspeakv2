@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useTransition } from 'react';
 import { submitTeacherConcernAction, uploadTicketEvidenceImageAction } from '@/actions/tickets';
@@ -74,6 +74,7 @@ export default function TeacherConcernsView({
     setUrgency(TicketUrgency.NORMAL);
     setDescription('');
     setAttachmentUrl('');
+    setAttachmentFile(null);
     setMessage(null);
     setShowModal(true);
   };
@@ -118,7 +119,7 @@ export default function TeacherConcernsView({
               category,
               urgency,
               description,
-              attachmentUrl,
+              attachmentUrl: submittedAttachmentUrl,
               status: TicketStatus.SUBMITTED,
               createdAt: new Date().toISOString(),
             },
@@ -136,10 +137,10 @@ export default function TeacherConcernsView({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
-            💬 Teacher Concern Ticketing
+            Teacher Concerns
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-            Submit and monitor your support requests across technical, attendance, payment, and student concerns.
+            Submit and track your support requests.
           </p>
         </div>
 
@@ -149,8 +150,7 @@ export default function TeacherConcernsView({
           className="btn btn-primary"
           style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
         >
-          <span>+</span>
-          <span>Submit Concern Ticket</span>
+          <span>Submit Concern</span>
         </button>
       </div>
 
@@ -311,7 +311,7 @@ export default function TeacherConcernsView({
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Submit Teacher Concern Ticket</h3>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Submit Concern</h3>
               <button
                 type="button"
                 onClick={() => setShowModal(false)}

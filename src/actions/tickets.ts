@@ -1,7 +1,7 @@
-﻿'use server';
+'use server';
 
 import { prisma } from '@/lib/db';
-import { requireAuth, requirePermission } from '@/lib/auth/rbac';
+import { requireAuth, requirePermission, checkPermission } from '@/lib/auth/rbac';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import {
@@ -38,7 +38,10 @@ export async function submitTeacherConcernAction(
   data: z.infer<typeof TeacherConcernSchema>
 ): Promise<TicketActionResult> {
   try {
-    const user = await requirePermission('concerns:submit');
+    const user = await checkPermission('concerns:submit');
+    if (!user) {
+      return { error: 'Unauthorized. You do not have permission to submit concern tickets.' };
+    }
 
     const teacher = await prisma.teacherProfile.findFirst({
       where: { userId: user.id },
@@ -86,7 +89,8 @@ export async function updateTeacherConcernStatusAction(
   assignedToName?: string
 ): Promise<TicketActionResult> {
   try {
-    const user = await requirePermission('concerns:manage');
+    const user = await checkPermission('concerns:manage');
+    if (!user) return { error: 'Unauthorized. You do not have permission to manage concern tickets.' };
 
     const isResolvedOrClosed = status === TicketStatus.RESOLVED || status === TicketStatus.CLOSED;
 
@@ -134,7 +138,8 @@ export async function reportIncidentAction(
   data: z.infer<typeof IncidentReportSchema>
 ): Promise<TicketActionResult> {
   try {
-    const user = await requirePermission('incidents:report');
+    const user = await checkPermission('incidents:report');
+    if (!user) return { error: 'Unauthorized. You do not have permission to file incident reports.' };
 
     const parsed = IncidentReportSchema.safeParse(data);
     if (!parsed.success) {
@@ -193,7 +198,8 @@ export async function updateIncidentStatusAction(
   remarks?: string
 ): Promise<TicketActionResult> {
   try {
-    const user = await requirePermission('incidents:manage');
+    const user = await checkPermission('incidents:manage');
+    if (!user) return { error: 'Unauthorized. You do not have permission to manage incident reports.' };
 
     const isResolved = status === IncidentStatus.RESOLVED;
 
@@ -229,7 +235,10 @@ export async function uploadTicketEvidenceImageAction(
 ): Promise<TicketImageUploadResult> {
   try {
     const permission = scope === 'CONCERN' ? 'concerns:submit' : 'incidents:report';
-    const user = await requirePermission(permission);
+    const user = await checkPermission(permission);
+    if (!user) {
+      return { error: 'Unauthorized to upload ticket evidence.' };
+    }
     const image = parseUploadedImage(dataUrl);
     if (!image) {
       return { error: 'Evidence must be a valid JPEG, PNG, or WebP image no larger than 1 MB.' };

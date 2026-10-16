@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import {
   approveSRDRequestAction,
   rejectSRDRequestAction,
@@ -257,8 +257,18 @@ function ActionButtons({
 
 export default function RequestsApprovalQueue({ srdRequests, etoRequests, cashLoanRequests }: RequestsApprovalQueueProps) {
   const [tab, setTab] = useState<ActiveTab>('srd');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING'>('ALL');
+  const [clientNow, setClientNow] = useState<number | null>(null);
   const [, startTransition] = useTransition();
   const router = useRouter();
+
+  // Capture current timestamp only after mount to avoid SSR/client hydration mismatch
+  useEffect(() => {
+    const tick = () => setClientNow(Date.now());
+    tick();
+    const interval = setInterval(tick, 30_000); // refresh countdown every 30s
+    return () => clearInterval(interval);
+  }, []);
 
   const tabStyle = (active: boolean): React.CSSProperties => ({
     padding: '0.55rem 1.25rem',
@@ -275,6 +285,10 @@ export default function RequestsApprovalQueue({ srdRequests, etoRequests, cashLo
   const pendingSRD = srdRequests.filter((r) => r.status === 'PENDING').length;
   const pendingETO = etoRequests.filter((r) => r.status === 'PENDING').length;
   const pendingCashLoans = cashLoanRequests.filter((r) => r.status === 'PENDING').length;
+
+  const displayedSRD = statusFilter === 'PENDING' ? srdRequests.filter((r) => r.status === 'PENDING') : srdRequests;
+  const displayedETO = statusFilter === 'PENDING' ? etoRequests.filter((r) => r.status === 'PENDING') : etoRequests;
+  const displayedCashLoans = statusFilter === 'PENDING' ? cashLoanRequests.filter((r) => r.status === 'PENDING') : cashLoanRequests;
 
   const thStyle: React.CSSProperties = {
     padding: '10px 14px',
@@ -297,69 +311,117 @@ export default function RequestsApprovalQueue({ srdRequests, etoRequests, cashLo
 
   return (
     <div>
-      {/* Tab bar */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '0.25rem',
-          marginBottom: '1.25rem',
-          background: 'var(--bg-secondary)',
-          padding: '0.25rem',
-          borderRadius: 'var(--radius-sm)',
-          width: 'fit-content',
-        }}
-      >
-        <button style={tabStyle(tab === 'srd')} onClick={() => setTab('srd')}>
-          Switch Rest Day
-          {pendingSRD > 0 && (
-            <span
-              style={{
-                marginLeft: '0.5rem',
-                background: '#f87171',
-                color: '#fff',
-                borderRadius: '999px',
-                fontSize: '0.7rem',
-                padding: '1px 6px',
-              }}
-            >
-              {pendingSRD}
-            </span>
-          )}
-        </button>
-        <button style={tabStyle(tab === 'eto')} onClick={() => setTab('eto')}>
-          Early Time-Off
-          {pendingETO > 0 && (
-            <span
-              style={{
-                marginLeft: '0.5rem',
-                background: '#fcd34d',
-                color: '#1a1a1a',
-                borderRadius: '999px',
-                fontSize: '0.7rem',
-                padding: '1px 6px',
-              }}
-            >
-              {pendingETO}
-            </span>
-          )}
-        </button>
-        <button style={tabStyle(tab === 'cash-loan')} onClick={() => setTab('cash-loan')}>
-          Cash Loan
-          {pendingCashLoans > 0 && (
-            <span
-              style={{
-                marginLeft: '0.5rem',
-                background: '#f59e0b',
-                color: '#fff',
-                borderRadius: '999px',
-                fontSize: '0.7rem',
-                padding: '1px 6px',
-              }}
-            >
-              {pendingCashLoans}
-            </span>
-          )}
-        </button>
+      {/* Tab bar and Status Filters */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem' }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: '0.25rem',
+            background: 'var(--bg-secondary)',
+            padding: '0.25rem',
+            borderRadius: 'var(--radius-sm)',
+            width: 'fit-content',
+          }}
+        >
+          <button style={tabStyle(tab === 'srd')} onClick={() => setTab('srd')}>
+            Switch Rest Day
+            {pendingSRD > 0 && (
+              <span
+                style={{
+                  marginLeft: '0.5rem',
+                  background: '#f87171',
+                  color: '#fff',
+                  borderRadius: '999px',
+                  fontSize: '0.7rem',
+                  padding: '1px 6px',
+                }}
+              >
+                {pendingSRD}
+              </span>
+            )}
+          </button>
+          <button style={tabStyle(tab === 'eto')} onClick={() => setTab('eto')}>
+            Early Time-Off
+            {pendingETO > 0 && (
+              <span
+                style={{
+                  marginLeft: '0.5rem',
+                  background: '#fcd34d',
+                  color: '#1a1a1a',
+                  borderRadius: '999px',
+                  fontSize: '0.7rem',
+                  padding: '1px 6px',
+                }}
+              >
+                {pendingETO}
+              </span>
+            )}
+          </button>
+          <button style={tabStyle(tab === 'cash-loan')} onClick={() => setTab('cash-loan')}>
+            Cash Loan
+            {pendingCashLoans > 0 && (
+              <span
+                style={{
+                  marginLeft: '0.5rem',
+                  background: '#f59e0b',
+                  color: '#fff',
+                  borderRadius: '999px',
+                  fontSize: '0.7rem',
+                  padding: '1px 6px',
+                }}
+              >
+                {pendingCashLoans}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Status Filter: All vs Pending */}
+        <div
+          style={{
+            display: 'inline-flex',
+            padding: '3px',
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-light)',
+            borderRadius: 'var(--radius-sm)',
+            gap: '4px',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setStatusFilter('ALL')}
+            style={{
+              padding: '0.35rem 0.85rem',
+              borderRadius: 'var(--radius-sm)',
+              background: statusFilter === 'ALL' ? 'var(--ns-blue)' : 'transparent',
+              color: statusFilter === 'ALL' ? '#ffffff' : 'var(--text-muted)',
+              border: 'none',
+              fontWeight: 600,
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+              transition: 'var(--transition-fast)',
+            }}
+          >
+            All Requests
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('PENDING')}
+            style={{
+              padding: '0.35rem 0.85rem',
+              borderRadius: 'var(--radius-sm)',
+              background: statusFilter === 'PENDING' ? 'var(--ns-blue)' : 'transparent',
+              color: statusFilter === 'PENDING' ? '#ffffff' : 'var(--text-muted)',
+              border: 'none',
+              fontWeight: 600,
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+              transition: 'var(--transition-fast)',
+            }}
+          >
+            Pending Only
+          </button>
+        </div>
       </div>
 
       {/* SRD Table */}
@@ -379,14 +441,14 @@ export default function RequestsApprovalQueue({ srdRequests, etoRequests, cashLo
               </tr>
             </thead>
             <tbody>
-              {srdRequests.length === 0 ? (
+              {displayedSRD.length === 0 ? (
                 <tr>
                   <td colSpan={8} style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-dim)', padding: '2.5rem' }}>
-                    No Switch Rest Day requests found.
+                    {statusFilter === 'PENDING' ? 'No pending Switch Rest Day requests.' : 'No Switch Rest Day requests found.'}
                   </td>
                 </tr>
               ) : (
-                srdRequests.map((req) => (
+                displayedSRD.map((req) => (
                   <tr key={req.id}>
                     <td style={tdStyle}>
                       <div style={{ fontWeight: 600 }}>{req.teacher.displayName}</div>
@@ -445,15 +507,15 @@ export default function RequestsApprovalQueue({ srdRequests, etoRequests, cashLo
               </tr>
             </thead>
             <tbody>
-              {etoRequests.length === 0 ? (
+              {displayedETO.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-dim)', padding: '2.5rem' }}>
-                    No Early Time-Off requests found.
+                    {statusFilter === 'PENDING' ? 'No pending Early Time-Off requests.' : 'No Early Time-Off requests found.'}
                   </td>
                 </tr>
               ) : (
-                etoRequests.map((req) => {
-                  const now = Date.now();
+                displayedETO.map((req) => {
+                  const now = clientNow ?? new Date(req.expiresAt).getTime(); // fallback keeps minLeft ≥ 0
                   const expires = new Date(req.expiresAt).getTime();
                   const minLeft = Math.max(0, Math.round((expires - now) / 60000));
                   const isExpiring = req.status === 'PENDING' && minLeft < 5;
@@ -530,14 +592,14 @@ export default function RequestsApprovalQueue({ srdRequests, etoRequests, cashLo
               </tr>
             </thead>
             <tbody>
-              {cashLoanRequests.length === 0 ? (
+              {displayedCashLoans.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-dim)', padding: '2.5rem' }}>
-                    No cash loan requests found.
+                    {statusFilter === 'PENDING' ? 'No pending cash loan requests.' : 'No cash loan requests found.'}
                   </td>
                 </tr>
               ) : (
-                cashLoanRequests.map((req) => (
+                displayedCashLoans.map((req) => (
                   <tr key={req.id}>
                     <td style={tdStyle}>
                       <div style={{ fontWeight: 600 }}>{req.teacher.displayName}</div>

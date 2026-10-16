@@ -2,9 +2,10 @@
 
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
-import { requirePermission, PERMISSIONS } from '@/lib/auth/rbac';
+import { checkPermission, PERMISSIONS } from '@/lib/auth/rbac';
 import { hashPassword } from '@/lib/auth/password';
 import { revalidatePath } from 'next/cache';
+import { recordAuditLog } from '@/lib/audit/auditLogger';
 
 const CreateUserSchema = z.object({
   fullName: z.string().min(2, 'Full name must be at least 2 characters'),
@@ -28,10 +29,9 @@ export async function createUserAction(
   prevState: UserActionState | null,
   formData: FormData
 ): Promise<UserActionState> {
-  try {
-    await requirePermission(PERMISSIONS.USERS_CREATE);
-  } catch (err: unknown) {
-    return { error: err instanceof Error ? err.message : 'Unauthorized' };
+  const actor = await checkPermission(PERMISSIONS.USERS_CREATE);
+  if (!actor) {
+    return { error: 'Unauthorized. You do not have permission to create users.' };
   }
 
   const rawData = {
@@ -110,6 +110,18 @@ export async function createUserAction(
   }
 
   revalidatePath('/dashboard');
+  revalidatePath('/dashboard/users');
+
+  await recordAuditLog({
+    userId: actor.id,
+    action: 'CREATE',
+    module: 'users',
+    entityType: 'User',
+    entityId: newUser.id,
+    details: `Created ${roleName} account for ${fullName} (${username})${branchValue ? ` at branch ${branchValue}` : ''}`,
+    newValue: { username, email: email.toLowerCase(), roleName, branch: branchValue },
+  });
+
   return { success: `User '${username}' created successfully` };
 }
 
@@ -117,10 +129,9 @@ export async function createUserAction(
  * Server Action: Toggle user activation status (Requires users:update permission)
  */
 export async function toggleUserStatusAction(userId: string): Promise<UserActionState> {
-  try {
-    await requirePermission(PERMISSIONS.USERS_UPDATE);
-  } catch (err: unknown) {
-    return { error: err instanceof Error ? err.message : 'Unauthorized' };
+  const actor = await checkPermission(PERMISSIONS.USERS_UPDATE);
+  if (!actor) {
+    return { error: 'Unauthorized. You do not have permission to update users.' };
   }
 
   const user = await prisma.user.findUnique({
@@ -144,6 +155,19 @@ export async function toggleUserStatusAction(userId: string): Promise<UserAction
   }
 
   revalidatePath('/dashboard');
+  revalidatePath('/dashboard/users');
+
+  await recordAuditLog({
+    userId: actor.id,
+    action: 'TOGGLE',
+    module: 'users',
+    entityType: 'User',
+    entityId: userId,
+    details: `${user.isActive ? 'Deactivated' : 'Activated'} user account for ${user.username}`,
+    oldValue: { isActive: user.isActive },
+    newValue: { isActive: !user.isActive },
+  });
+
   return { success: `User '${user.username}' status updated` };
 }
 
@@ -152,10 +176,9 @@ export async function toggleUserStatusAction(userId: string): Promise<UserAction
  * Used to fix existing accounts that have wrong/missing branch assignments.
  */
 export async function updateUserBranchAction(userId: string, branch: string): Promise<UserActionState> {
-  try {
-    await requirePermission(PERMISSIONS.USERS_UPDATE);
-  } catch (err: unknown) {
-    return { error: err instanceof Error ? err.message : 'Unauthorized' };
+  const actor = await checkPermission(PERMISSIONS.USERS_UPDATE);
+  if (!actor) {
+    return { error: 'Unauthorized. You do not have permission to update users.' };
   }
 
   if (!branch || branch.trim() === '') {
@@ -192,6 +215,16 @@ export async function updateUserBranchAction(userId: string, branch: string): Pr
 
   // Invalidate existing sessions so the user gets fresh branch data on next login
   await prisma.session.deleteMany({ where: { userId } });
+
+  await recordAuditLog({
+    userId: actor.id,
+    action: 'UPDATE',
+    module: 'users',
+    entityType: 'StaffProfile',
+    entityId: userId,
+    details: `Updated branch assignment for ${user.username} to '${branch.trim()}'`,
+    newValue: { branch: branch.trim() },
+  });
 
   revalidatePath('/dashboard');
   return { success: `Branch updated to '${branch}'. The user must log in again.` };

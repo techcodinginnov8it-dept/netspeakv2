@@ -1,7 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/db';
-import { requirePermission, PERMISSIONS } from '@/lib/auth/rbac';
+import { checkPermission, PERMISSIONS } from '@/lib/auth/rbac';
 
 export interface AuditLogItem {
   id: string;
@@ -38,7 +38,8 @@ export async function getAuditLogsAction(params?: AuditLogFilterParams): Promise
   error?: string;
 }> {
   try {
-    await requirePermission(PERMISSIONS.AUDIT_VIEW);
+    const user = await checkPermission(PERMISSIONS.AUDIT_VIEW);
+    if (!user) return { success: false, error: 'Unauthorized: You do not have permission to view audit logs.' };
 
     const limit = params?.limit || 50;
     const offset = params?.offset || 0;

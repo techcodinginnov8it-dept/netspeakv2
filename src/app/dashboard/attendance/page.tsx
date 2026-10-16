@@ -1,20 +1,17 @@
 import React from 'react';
 import { requirePermission, PERMISSIONS, hasPermission } from '@/lib/auth/rbac';
+import { ROLES } from '@/lib/auth/types';
 import { prisma } from '@/lib/db';
 import AttendanceRosterTable from '@/components/attendance/AttendanceRosterTable';
 import { resolveBranchFilter } from '@/lib/branches';
+import { getFreshnessCheckPhotoUrl } from '@/lib/supabase/storage';
+import { getManilaToday } from '@/lib/timezone';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Teacher Attendance | Netspeak Portal',
+  title: 'Attendance & Shifts | Netspeak Portal',
 };
-
-function normalizeDate(d = new Date()) {
-  const date = new Date(d);
-  date.setUTCHours(0, 0, 0, 0);
-  return date;
-}
 
 interface PageProps {
   searchParams: Promise<{ branch?: string }>;
@@ -24,9 +21,21 @@ export default async function AttendancePage({ searchParams }: PageProps) {
   const user = await requirePermission(PERMISSIONS.ATTENDANCE_READ);
   const canVerify = hasPermission(user, PERMISSIONS.ATTENDANCE_VERIFY);
   const resolvedParams = await searchParams;
-  const branchFilter = resolveBranchFilter(user, resolvedParams.branch);
 
-  const today = normalizeDate();
+  // IT users are global readers — they can view all branches for monitoring
+  const isGlobalViewer =
+    user.roles.includes(ROLES.SYSTEM_ADMINISTRATOR) ||
+    user.roles.includes(ROLES.MANAGEMENT) ||
+    user.roles.includes(ROLES.OPERATIONS_MANAGER) ||
+    user.roles.includes(ROLES.IT);
+
+  const branchFilter = isGlobalViewer
+    ? (resolvedParams.branch && resolvedParams.branch !== 'ALL'
+        ? { branch: resolvedParams.branch }
+        : {})
+    : resolveBranchFilter(user, resolvedParams.branch);
+
+  const today = getManilaToday();
 
   // Fetch all approved teachers and their attendance for today (filtered by branch)
   const teachers = await prisma.teacherProfile.findMany({
@@ -43,22 +52,53 @@ export default async function AttendancePage({ searchParams }: PageProps) {
     orderBy: { displayName: 'asc' },
   });
 
-  const roster = teachers.map((t) => ({
-    teacherId: t.id,
-    displayName: t.displayName,
-    realFullName: t.realFullName,
-    cellphone: t.cellphone,
-    department: t.department,
-    projectType: t.projectType,
-    shiftName: t.shiftSchedule?.name || 'Standard (08:00 - 17:00)',
-    attendance: t.attendances[0] || null,
-  }));
+  // Resolve freshness check signed photo URLs — batched in chunks to avoid
+  // overwhelming Supabase with too many concurrent signed-URL requests.
+  async function resolveBatch<T, R>(
+    items: T[],
+    fn: (item: T) => Promise<R>,
+    chunkSize = 10
+  ): Promise<R[]> {
+    const results: R[] = [];
+    for (let i = 0; i < items.length; i += chunkSize) {
+      const chunk = items.slice(i, i + chunkSize);
+      results.push(...(await Promise.all(chunk.map(fn))));
+    }
+    return results;
+  }
+
+  const roster = await resolveBatch(teachers, async (t) => {
+    const rawAttendance = t.attendances[0] || null;
+    const attendance = rawAttendance
+      ? {
+          ...rawAttendance,
+          status: rawAttendance.status as string,
+          timeIn: rawAttendance.timeIn ? rawAttendance.timeIn.toISOString() : null,
+          timeOut: rawAttendance.timeOut ? rawAttendance.timeOut.toISOString() : null,
+          timeInPhoto: rawAttendance.timeInPhoto
+            ? await getFreshnessCheckPhotoUrl(rawAttendance.timeInPhoto).catch(() => null)
+            : null,
+        }
+      : null;
+    return {
+      teacherId: t.id,
+      displayName: t.displayName,
+      realFullName: t.realFullName,
+      cellphone: t.cellphone,
+      department: t.department,
+      projectType: t.projectType,
+      shiftName: t.shiftSchedule?.name || 'Standard (08:00 - 17:00)',
+      attendance,
+    };
+  });
+
 
   const totalScheduled = roster.length;
-  const presentCount = roster.filter((r) => r.attendance?.timeIn).length;
+  const presentCount = roster.filter((r) => r.attendance?.timeIn && !r.attendance.isLate && !r.attendance.isEarlyOut).length;
   const lateCount = roster.filter((r) => r.attendance?.isLate).length;
   const earlyOutCount = roster.filter((r) => r.attendance?.isEarlyOut).length;
   const noLoginCount = roster.filter((r) => !r.attendance?.timeIn).length;
+  const srdCount = roster.filter((r) => r.attendance?.status === 'SRD').length;
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -93,6 +133,10 @@ export default async function AttendancePage({ searchParams }: PageProps) {
         <div className="card" style={{ padding: '20px', borderLeft: '4px solid var(--danger)' }}>
           <span style={{ color: 'var(--foreground-muted)', fontSize: '0.85rem' }}>No Login / Pending</span>
           <div style={{ fontSize: '1.75rem', fontWeight: 700, marginTop: '4px', color: '#DC2626' }}>{noLoginCount}</div>
+        </div>
+        <div className="card" style={{ padding: '20px', borderLeft: '4px solid #7c3aed' }}>
+          <span style={{ color: 'var(--foreground-muted)', fontSize: '0.85rem' }}>SRD (Swapped)</span>
+          <div style={{ fontSize: '1.75rem', fontWeight: 700, marginTop: '4px', color: '#6D28D9' }}>{srdCount}</div>
         </div>
       </div>
 

@@ -1,7 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/db';
-import { requireAuth, requirePermission, ROLES, hasRole } from '@/lib/auth/rbac';
+import { requireAuth, requirePermission, checkPermission, ROLES, hasRole } from '@/lib/auth/rbac';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { getManilaToday, getManilaShiftBoundaries } from '@/lib/timezone';
@@ -265,14 +265,15 @@ export async function verifyTeacherAttendanceAction(
     absenceReason?: string;
   }
 ) {
-  const user = await requirePermission('attendance:verify');
+  const user = await checkPermission('attendance:verify');
+  if (!user) return { error: 'You do not have permission to verify attendance records.' };
 
   const attendance = await prisma.teacherAttendance.findUnique({
     where: { id: attendanceId },
   });
 
   if (!attendance) {
-    throw new Error('Attendance record not found.');
+    return { error: 'Attendance record not found.' };
   }
 
   await prisma.teacherAttendance.update({

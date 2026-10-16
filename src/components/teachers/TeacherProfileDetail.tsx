@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   reviewTeacherRegistrationAction,
   approveTeacherRegistrationAction,
@@ -66,6 +67,8 @@ export default function TeacherProfileDetail({
   canApprove: boolean;
   canUpdate: boolean;
 }) {
+  const router = useRouter();
+  const [currentStatus, setCurrentStatus] = useState<TeacherProfileData['registrationStatus']>(teacher.registrationStatus);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -100,7 +103,9 @@ export default function TeacherProfileDetail({
       try {
         const res = await reviewTeacherRegistrationAction(teacher.id);
         if (res.success) {
+          setCurrentStatus('UNDER_REVIEW');
           setSuccessMessage('Registration marked as Under Review.');
+          router.refresh();
         }
       } catch (err: any) {
         setError(err.message);
@@ -114,10 +119,12 @@ export default function TeacherProfileDetail({
       try {
         const res = await approveTeacherRegistrationAction(teacher.id);
         if (res.success && res.credentials) {
+          setCurrentStatus('APPROVED');
           setNewCredentials(res.credentials);
           setSuccessMessage(res.emailDelivery?.delivered
             ? 'Teacher approved, account activated, and credentials emailed successfully.'
             : res.emailDelivery?.error || 'Teacher approved and account activated successfully!');
+          router.refresh();
         }
       } catch (err: any) {
         setError(err.message);
@@ -132,8 +139,10 @@ export default function TeacherProfileDetail({
       try {
         const res = await rejectTeacherRegistrationAction(teacher.id, rejectionReason);
         if (res.success) {
+          setCurrentStatus('REJECTED');
           setRejectionModalOpen(false);
           setSuccessMessage('Registration rejected with recorded rationale.');
+          router.refresh();
         }
       } catch (err: any) {
         setError(err.message);
@@ -267,7 +276,7 @@ export default function TeacherProfileDetail({
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
               <h1 style={{ fontSize: '1.85rem', fontWeight: 700 }}>{teacher.displayName}</h1>
-              {statusBadge(teacher.registrationStatus)}
+              {statusBadge(currentStatus)}
             </div>
             <div style={{ color: 'var(--foreground-muted)', fontSize: '0.95rem' }}>
               Real Name: <strong style={{ color: 'var(--foreground)' }}>{teacher.realFullName}</strong> | Cellphone: <strong style={{ color: 'var(--foreground)' }}>{teacher.cellphone}</strong>
@@ -280,7 +289,7 @@ export default function TeacherProfileDetail({
               ← Back to Teachers
             </Link>
 
-            {teacher.registrationStatus === 'APPROVED' && (
+            {currentStatus === 'APPROVED' && (
               <Link
                 href={`/dashboard/teachers/${teacher.id}/certificate`}
                 className="btn btn-secondary"
@@ -298,7 +307,7 @@ export default function TeacherProfileDetail({
               </Link>
             )}
 
-            {teacher.registrationStatus === 'PENDING' && canReview && (
+            {currentStatus === 'PENDING' && canReview && (
               <button
                 type="button"
                 onClick={handleMarkReview}
@@ -310,7 +319,7 @@ export default function TeacherProfileDetail({
               </button>
             )}
 
-            {['PENDING', 'UNDER_REVIEW'].includes(teacher.registrationStatus) && canApprove && (
+            {['PENDING', 'UNDER_REVIEW'].includes(currentStatus) && canApprove && (
               <button
                 type="button"
                 onClick={handleApprove}
@@ -322,7 +331,7 @@ export default function TeacherProfileDetail({
               </button>
             )}
 
-            {['PENDING', 'UNDER_REVIEW'].includes(teacher.registrationStatus) && (canReview || canApprove) && (
+            {['PENDING', 'UNDER_REVIEW'].includes(currentStatus) && (canReview || canApprove) && (
               <button
                 type="button"
                 onClick={() => setRejectionModalOpen(true)}
@@ -346,7 +355,7 @@ export default function TeacherProfileDetail({
             color: '#DC2626',
             fontWeight: 600
           }}>
-            ⚠️ï¸ {error}
+            ⚠️ {error}
           </div>
         )}
 

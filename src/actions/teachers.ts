@@ -1,13 +1,14 @@
 'use server';
 
 import { prisma } from '@/lib/db';
-import { requireAuth, requirePermission, ROLES } from '@/lib/auth/rbac';
+import { requireAuth, requirePermission, checkPermission, ROLES } from '@/lib/auth/rbac';
 import { hashPassword } from '@/lib/auth/password';
 import { resolveBranchFilter } from '@/lib/branches';
 import type { AuthenticatedUser } from '@/lib/auth/types';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { sendTeacherCredentialsEmail } from '@/lib/email/smtp';
+import { recordAuditLog } from '@/lib/audit/auditLogger';
 
 // Registration schema for incoming submissions
 const TeacherRegistrationSchema = z.object({
@@ -24,6 +25,7 @@ const TeacherRegistrationSchema = z.object({
   major: z.string().min(2, 'Major is required'),
   projectType: z.enum(['FTEX', 'FT', 'TTP']).default('FT'),
   department: z.enum(['DOMESTIC', 'OVERSEAS']).default('DOMESTIC'),
+  branch: z.string().optional().default('Atimonan'),
   assignedRestDay: z.string().default('Sunday'),
   portalUsername: z.string().optional(),
   portalPassword: z.string().optional(),
@@ -75,6 +77,7 @@ export async function registerTeacherAction(
       major: formData.get('major'),
       projectType: formData.get('projectType') || 'FT',
       department: formData.get('department') || 'DOMESTIC',
+      branch: formData.get('branch') || 'Atimonan',
       assignedRestDay: formData.get('assignedRestDay') || 'Sunday',
       portalUsername: formData.get('portalUsername') || undefined,
       portalPassword: formData.get('portalPassword') || undefined,
@@ -104,6 +107,7 @@ export async function registerTeacherAction(
       major,
       projectType,
       department,
+      branch,
       assignedRestDay,
       portalUsername,
       portalPassword,
@@ -205,6 +209,7 @@ export async function registerTeacherAction(
         major: major.trim(),
         projectType,
         department,
+        branch: branch?.trim() || 'Atimonan',
         assignedRestDay,
         portalUsername: portalUsername ? portalUsername.trim() : null,
         portalPassword: portalPassword ? portalPassword.trim() : null,
@@ -234,16 +239,17 @@ export async function registerTeacherAction(
  * Admin action: Mark registration as Under Review
  */
 export async function reviewTeacherRegistrationAction(teacherProfileId: string, notes?: string) {
-  const currentUser = await requirePermission('teachers:review');
+  const currentUser = await checkPermission('teachers:review');
+  if (!currentUser) return { error: 'You do not have permission to review teacher registrations.' };
 
   const profile = await findAccessibleTeacherProfile(teacherProfileId, currentUser);
 
   if (!profile) {
-    throw new Error('Teacher registration profile not found.');
+    return { error: 'Teacher registration profile not found.' };
   }
 
   if (profile.registrationStatus !== 'PENDING') {
-    throw new Error(`Cannot review profile currently in ${profile.registrationStatus} state.`);
+    return { error: `Cannot review profile currently in ${profile.registrationStatus} state.` };
   }
 
   await prisma.teacherProfile.update({
@@ -257,24 +263,37 @@ export async function reviewTeacherRegistrationAction(teacherProfileId: string, 
 
   revalidatePath('/dashboard/teachers');
   revalidatePath(`/dashboard/teachers/${teacherProfileId}`);
+
+  await recordAuditLog({
+    userId: currentUser.id,
+    action: 'UPDATE',
+    module: 'teachers',
+    entityType: 'TeacherProfile',
+    entityId: teacherProfileId,
+    details: `Marked teacher registration for ${profile.displayName} as Under Review`,
+    oldValue: { registrationStatus: profile.registrationStatus },
+    newValue: { registrationStatus: 'UNDER_REVIEW' },
+  });
+
   return { success: true };
 }
 
 /**
- * Operations Manager / Admin Action: Final Approval & Account Activation
+ * Registration Approval & Account Activation
  * Creates User account, links TeacherProfile, assigns TEACHER role, and generates initial credentials.
  */
 export async function approveTeacherRegistrationAction(teacherProfileId: string) {
-  const currentUser = await requirePermission('teachers:approve');
+  const currentUser = await checkPermission('teachers:approve');
+  if (!currentUser) return { error: 'You do not have permission to approve teacher registrations.' };
 
   const profile = await findAccessibleTeacherProfile(teacherProfileId, currentUser);
 
   if (!profile) {
-    throw new Error('Teacher registration profile not found.');
+    return { error: 'Teacher registration profile not found.' };
   }
 
   if (profile.registrationStatus === 'APPROVED') {
-    throw new Error('This teacher registration has already been approved.');
+    return { error: 'This teacher registration has already been approved.' };
   }
 
   // Generate unique username based on real name or display name
@@ -285,7 +304,7 @@ export async function approveTeacherRegistrationAction(teacherProfileId: string)
   const randomSuffix = Math.floor(1000 + Math.random() * 9000);
   const generatedUsername = `tch_${sanitizedName || 'user'}_${randomSuffix}`;
   if (!profile.contactEmail) {
-    throw new Error('This applicant has no email address. Add a delivery email before approval.');
+    return { error: 'This applicant has no email address. Add a delivery email before approval.' };
   }
 
   const generatedEmail = profile.contactEmail;
@@ -300,12 +319,12 @@ export async function approveTeacherRegistrationAction(teacherProfileId: string)
   });
 
   if (!teacherRole) {
-    throw new Error('TEACHER role definition not found in system.');
+    return { error: 'TEACHER role definition not found in system.' };
   }
 
   const existingUserWithEmail = await prisma.user.findUnique({ where: { email: generatedEmail } });
   if (existingUserWithEmail) {
-    throw new Error('An active portal account already uses this applicant email address.');
+    return { error: 'An active portal account already uses this applicant email address.' };
   }
 
   // Create User and link to Profile in transaction
@@ -345,6 +364,16 @@ export async function approveTeacherRegistrationAction(teacherProfileId: string)
   revalidatePath('/dashboard/teachers');
   revalidatePath(`/dashboard/teachers/${teacherProfileId}`);
 
+  await recordAuditLog({
+    userId: currentUser.id,
+    action: 'APPROVE',
+    module: 'teachers',
+    entityType: 'TeacherProfile',
+    entityId: teacherProfileId,
+    details: `Approved teacher registration for ${profile.displayName} — account ${generatedUsername} created`,
+    newValue: { registrationStatus: 'APPROVED', username: generatedUsername, userId: user.id },
+  });
+
   let emailDelivered = false;
   let emailError: string | undefined;
   try {
@@ -376,16 +405,17 @@ export async function approveTeacherRegistrationAction(teacherProfileId: string)
  * Reject registration with reason
  */
 export async function rejectTeacherRegistrationAction(teacherProfileId: string, reason: string) {
-  const currentUser = await requirePermission('teachers:review');
+  const currentUser = await checkPermission('teachers:review');
+  if (!currentUser) return { error: 'You do not have permission to reject teacher registrations.' };
 
   if (!reason || reason.trim().length < 3) {
-    throw new Error('A valid reason is required to reject a registration.');
+    return { error: 'A valid reason is required to reject a registration.' };
   }
 
   const profile = await findAccessibleTeacherProfile(teacherProfileId, currentUser);
 
   if (!profile) {
-    throw new Error('Teacher registration profile not found.');
+    return { error: 'Teacher registration profile not found.' };
   }
 
   await prisma.teacherProfile.update({
@@ -400,6 +430,18 @@ export async function rejectTeacherRegistrationAction(teacherProfileId: string, 
 
   revalidatePath('/dashboard/teachers');
   revalidatePath(`/dashboard/teachers/${teacherProfileId}`);
+
+  await recordAuditLog({
+    userId: currentUser.id,
+    action: 'REJECT',
+    module: 'teachers',
+    entityType: 'TeacherProfile',
+    entityId: teacherProfileId,
+    details: `Rejected teacher registration for ${profile.displayName}. Reason: ${reason.trim()}`,
+    oldValue: { registrationStatus: profile.registrationStatus },
+    newValue: { registrationStatus: 'REJECTED', rejectionReason: reason.trim() },
+  });
+
   return { success: true };
 }
 
@@ -417,11 +459,12 @@ export async function updateTeacherOperationalAction(
     portalPassword?: string;
   }
 ) {
-  const currentUser = await requirePermission('teachers:update');
+  const currentUser = await checkPermission('teachers:update');
+  if (!currentUser) return { error: 'You do not have permission to update teacher details.' };
 
   const profile = await findAccessibleTeacherProfile(teacherProfileId, currentUser);
   if (!profile) {
-    throw new Error('Teacher profile not found.');
+    return { error: 'Teacher profile not found.' };
   }
 
   await prisma.teacherProfile.update({

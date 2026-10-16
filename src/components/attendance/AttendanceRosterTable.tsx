@@ -31,6 +31,38 @@ type RosterItem = {
   attendance: AttendanceRecord | null;
 };
 
+const FILTER_LABELS: Record<string, string> = {
+  ALL:       'All Records',
+  PRESENT:   'Present',
+  LATE:      'Late',
+  EARLY_OUT: 'Early Out',
+  NO_LOGIN:  'No Login',
+  SRD:       'SRD',
+};
+
+function matchesStatusFilter(item: RosterItem, filterStatus: string): boolean {
+  if (filterStatus === 'ALL') return true;
+  if (filterStatus === 'NO_LOGIN') {
+    // No login = no timeIn recorded at all
+    return !item.attendance?.timeIn;
+  }
+  // For all other statuses, match against the attendance status
+  // A teacher with no record at all is effectively "No Login", not PRESENT/LATE/etc.
+  if (!item.attendance || !item.attendance.timeIn) return false;
+  return item.attendance.status === filterStatus;
+}
+
+function matchesSearch(item: RosterItem, query: string): boolean {
+  if (!query.trim()) return true;
+  const q = query.toLowerCase();
+  return (
+    item.displayName.toLowerCase().includes(q) ||
+    item.realFullName.toLowerCase().includes(q) ||
+    item.cellphone.includes(q) ||
+    item.department.toLowerCase().includes(q)
+  );
+}
+
 export default function AttendanceRosterTable({
   initialRoster,
   canVerify,
@@ -46,7 +78,8 @@ export default function AttendanceRosterTable({
 
   // Verification modal state
   const [editingAttendance, setEditingAttendance] = useState<{
-    id: string;
+    id: string | null; // null = creating new record for this teacher
+    teacherId: string;
     teacherName: string;
     currentStatus: string;
     remarks: string;
@@ -54,23 +87,13 @@ export default function AttendanceRosterTable({
   } | null>(null);
 
   const [isPending, startTransition] = useTransition();
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const filteredRoster = roster.filter((item) => {
-    if (filterStatus !== 'ALL') {
-      const st = item.attendance ? item.attendance.status : 'ABSENT_INVALID';
-      if (filterStatus === 'NO_LOGIN' && item.attendance?.timeIn) return false;
-      if (filterStatus !== 'NO_LOGIN' && st !== filterStatus) return false;
-    }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      return (
-        item.displayName.toLowerCase().includes(q) ||
-        item.realFullName.toLowerCase().includes(q) ||
-        item.cellphone.includes(q)
-      );
-    }
-    return true;
-  });
+
+  const filteredRoster = roster.filter((item) =>
+    matchesStatusFilter(item, filterStatus) && matchesSearch(item, searchQuery)
+  );
+
 
   const getStatusBadge = (attendance: AttendanceRecord | null) => {
     if (!attendance || !attendance.timeIn) {
@@ -163,14 +186,25 @@ export default function AttendanceRosterTable({
   const handleSaveVerification = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingAttendance) return;
+    setSaveError(null);
+    // Only allow saving if we have an attendanceId (existing record)
+    if (!editingAttendance.id) {
+      setSaveError('Cannot verify — no attendance record exists for this teacher today. Use a manual admin override.');
+      return;
+    }
     startTransition(async () => {
-      await verifyTeacherAttendanceAction(editingAttendance.id, {
+      const res = await verifyTeacherAttendanceAction(editingAttendance.id!, {
         status: editingAttendance.currentStatus as any,
         adminRemarks: editingAttendance.remarks,
         absenceReason: editingAttendance.reason,
       });
 
-      // Update local state
+      if (res?.error) {
+        setSaveError(res.error);
+        return;
+      }
+
+      // Update local state optimistically
       setRoster((prev) =>
         prev.map((item) => {
           if (item.attendance && item.attendance.id === editingAttendance.id) {
@@ -193,21 +227,19 @@ export default function AttendanceRosterTable({
     });
   };
 
+
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* Search and Filters */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {['ALL', 'PRESENT', 'LATE', 'EARLY_OUT', 'NO_LOGIN', 'SRD'].map((st) => {
-            const FILTER_LABELS: Record<string, string> = {
-              ALL:       'All Records',
-              PRESENT:   'Present',
-              LATE:      'Late',
-              EARLY_OUT: 'Early Out',
-              NO_LOGIN:  'No Login',
-              SRD:       'SRD',
-            };
+          {(['ALL', 'PRESENT', 'LATE', 'EARLY_OUT', 'NO_LOGIN', 'SRD'] as const).map((st) => {
             const isActive = filterStatus === st;
+            // Count items matching this filter
+            const count = st === 'ALL'
+              ? roster.length
+              : roster.filter((item) => matchesStatusFilter(item, st)).length;
             return (
               <button
                 key={st}
@@ -223,6 +255,12 @@ export default function AttendanceRosterTable({
                 }}
               >
                 {FILTER_LABELS[st] ?? st}
+                <span style={{
+                  marginLeft: '6px',
+                  fontSize: '0.75rem',
+                  opacity: 0.75,
+                  fontWeight: 400,
+                }}>({count})</span>
               </button>
             );
           })}
@@ -232,7 +270,7 @@ export default function AttendanceRosterTable({
           <input
             type="text"
             className="input"
-            placeholder="Search teacher by name..."
+            placeholder="Search by name, dept..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{ padding: '6px 12px', fontSize: '0.85rem' }}
@@ -343,23 +381,44 @@ export default function AttendanceRosterTable({
                     )}
                   </td>
                   <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                    {row.attendance && canVerify ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setEditingAttendance({
-                            id: row.attendance!.id,
-                            teacherName: row.displayName,
-                            currentStatus: row.attendance!.status,
-                            remarks: row.attendance!.adminRemarks || '',
-                            reason: row.attendance!.absenceReason || '',
-                          })
-                        }
-                        className="btn btn-secondary"
-                        style={{ padding: '4px 10px', fontSize: '0.8rem' }}
-                      >
-                        Verify / Edit
-                      </button>
+                    {canVerify ? (
+                      row.attendance ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEditingAttendance({
+                              id: row.attendance!.id,
+                              teacherId: row.teacherId,
+                              teacherName: row.displayName,
+                              currentStatus: row.attendance!.status,
+                              remarks: row.attendance!.adminRemarks || '',
+                              reason: row.attendance!.absenceReason || '',
+                            })
+                          }
+                          className="btn btn-secondary"
+                          style={{ padding: '4px 10px', fontSize: '0.8rem' }}
+                        >
+                          {row.attendance.isVerifiedByAdmin ? '✓ Re-verify' : 'Verify / Edit'}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEditingAttendance({
+                              id: null as any,
+                              teacherId: row.teacherId,
+                              teacherName: row.displayName,
+                              currentStatus: 'ABSENT_INVALID',
+                              remarks: '',
+                              reason: '',
+                            })
+                          }
+                          className="btn btn-secondary"
+                          style={{ padding: '4px 10px', fontSize: '0.8rem', opacity: 0.7 }}
+                        >
+                          + Manual Entry
+                        </button>
+                      )
                     ) : (
                       <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem' }}>—</span>
                     )}
@@ -425,8 +484,34 @@ export default function AttendanceRosterTable({
         }}>
           <div className="card" style={{ maxWidth: 480, width: '100%', padding: '24px' }}>
             <h3 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: '12px' }}>
-              Verify Attendance: {editingAttendance.teacherName}
+              {editingAttendance.id ? 'Verify Attendance' : '+ Manual Attendance Entry'}: {editingAttendance.teacherName}
             </h3>
+            {!editingAttendance.id && (
+              <div style={{
+                padding: '10px 14px',
+                borderRadius: '8px',
+                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
+                color: '#B45309',
+                fontSize: '0.85rem',
+                marginBottom: '14px',
+              }}>
+                ⚠️ No auto-recorded attendance exists for this teacher today. You are creating a manual admin override entry.
+              </div>
+            )}
+            {saveError && (
+              <div style={{
+                padding: '10px 14px',
+                borderRadius: '8px',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.25)',
+                color: '#DC2626',
+                fontSize: '0.85rem',
+                marginBottom: '14px',
+              }}>
+                {saveError}
+              </div>
+            )}
             <form onSubmit={handleSaveVerification} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div className="form-group">
                 <label>Attendance Status</label>
@@ -477,15 +562,16 @@ export default function AttendanceRosterTable({
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
                 <button
                   type="button"
-                  onClick={() => setEditingAttendance(null)}
+                  onClick={() => { setEditingAttendance(null); setSaveError(null); }}
                   className="btn btn-secondary"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={isPending}
+                  disabled={isPending || !editingAttendance.id}
                   className="btn btn-primary"
+                  title={!editingAttendance.id ? 'Cannot save — no existing attendance record to update' : undefined}
                 >
                   {isPending ? 'Saving...' : 'Save & Verify Record ✓'}
                 </button>

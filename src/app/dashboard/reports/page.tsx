@@ -25,8 +25,15 @@ export default async function ReportsPage() {
     end = new Date(year, month + 1, 0);
   }
 
-  const defaultStartDate = start.toISOString().split('T')[0];
-  const defaultEndDate = end.toISOString().split('T')[0];
+  const formatYMD = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  const defaultStartDate = formatYMD(start);
+  const defaultEndDate = formatYMD(end);
 
   const [teacherRes, staffRes] = await Promise.all([
     getCutOffReportAction({

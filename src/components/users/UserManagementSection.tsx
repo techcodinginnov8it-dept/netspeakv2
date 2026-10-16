@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useActionState, useRef, useState } from 'react';
+import React, { useActionState, useRef, useState, useTransition } from 'react';
 import { createUserAction, toggleUserStatusAction, updateUserBranchAction, UserActionState } from '@/actions/users';
 import { BRANCH_NAMES } from '@/lib/branches';
 
@@ -29,54 +29,90 @@ function BranchEditor({
   currentBranch,
   hasBadBranch,
   canUpdate,
+  onBranchUpdated,
 }: {
   userId: string;
   currentBranch: string | undefined;
   hasBadBranch: boolean;
   canUpdate: boolean;
+  onBranchUpdated?: (newBranch: string) => void;
 }) {
   const [branch, setBranch] = useState(
     currentBranch && BRANCH_NAMES.includes(currentBranch) ? currentBranch : ''
   );
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [savedSuccess, setSavedSuccess] = useState(false);
 
   async function saveBranch() {
     if (!branch || branch === currentBranch) return;
     setIsSaving(true);
     setError(null);
+    setSavedSuccess(false);
     const result = await updateUserBranchAction(userId, branch);
     setIsSaving(false);
-    setError(result.error ?? null);
+    if (result.error) {
+      setError(result.error);
+    } else {
+      setSavedSuccess(true);
+      onBranchUpdated?.(branch);
+      setTimeout(() => setSavedSuccess(false), 2500);
+    }
   }
 
   if (!canUpdate) {
-    return React.createElement('span', null, hasBadBranch ? 'Unassigned' : currentBranch);
+    return <span>{hasBadBranch ? 'Unassigned' : currentBranch || '—'}</span>;
   }
 
-  const options = [
-    React.createElement('option', { key: 'placeholder', value: '', disabled: true }, 'Assign branch...'),
-    ...BRANCH_NAMES.map(function createBranchOption(branchName) {
-      return React.createElement('option', { key: branchName, value: branchName }, branchName);
-    }),
-  ];
-
-  return React.createElement(
-    'div',
-    null,
-    React.createElement('select', {
-      'aria-label': 'Branch assignment',
-      value: branch,
-      onChange: function handleBranchChange(event: { target: { value: string } }) {
-        setBranch(event.target.value);
-      },
-    }, options),
-    React.createElement(
-      'button',
-      { type: 'button', onClick: saveBranch, disabled: isSaving || !branch || branch === currentBranch },
-      isSaving ? 'Saving...' : 'Save'
-    ),
-    error ? React.createElement('span', { title: error }, 'Error') : null
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+      <select
+        aria-label="Branch assignment"
+        value={branch}
+        onChange={(e) => {
+          setBranch(e.target.value);
+          setError(null);
+        }}
+        className="input"
+        style={{
+          padding: '0.35rem 0.6rem',
+          fontSize: '0.8rem',
+          background: 'var(--bg-input)',
+          border: '1px solid var(--border-color)',
+          borderRadius: 'var(--radius-sm)',
+          color: 'var(--text-primary)',
+        }}
+      >
+        <option value="" disabled>Assign branch...</option>
+        {BRANCH_NAMES.map((branchName) => (
+          <option key={branchName} value={branchName}>
+            {branchName}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        onClick={saveBranch}
+        disabled={isSaving || !branch || branch === currentBranch}
+        className="btn btn-secondary"
+        style={{
+          padding: '0.35rem 0.65rem',
+          fontSize: '0.75rem',
+          opacity: isSaving || !branch || branch === currentBranch ? 0.6 : 1,
+          cursor: isSaving || !branch || branch === currentBranch ? 'not-allowed' : 'pointer',
+        }}
+      >
+        {isSaving ? 'Saving...' : 'Save'}
+      </button>
+      {savedSuccess && (
+        <span style={{ fontSize: '0.75rem', color: 'var(--color-success)', fontWeight: 600 }}>✓ Saved</span>
+      )}
+      {error && (
+        <span style={{ fontSize: '0.75rem', color: 'var(--color-danger)' }} title={error}>
+          Error: {error}
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -94,17 +130,47 @@ export default function UserManagementSection({
   currentUserId: string;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
+  const [userList, setUserList] = useState<UserItem[]>(users);
   const [selectedRole, setSelectedRole] = useState(roles[0]?.name || '');
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const showBranchField = STAFF_ROLES.includes(selectedRole);
 
   const [state, formAction, isPending] = useActionState(async (prev: UserActionState | null, formData: FormData) => {
     const res = await createUserAction(prev, formData);
-    if (res.success && formRef.current) {
-      formRef.current.reset();
-      setSelectedRole(roles[0]?.name || '');
+    if (res.success) {
+      if (formRef.current) {
+        formRef.current.reset();
+        setSelectedRole(roles[0]?.name || '');
+      }
+      // Re-fetch / reload or optimistically add user
+      window.location.reload();
     }
     return res;
   }, initialState);
+
+  async function handleToggleStatus(user: UserItem) {
+    setTogglingId(user.id);
+    const res = await toggleUserStatusAction(user.id);
+    setTogglingId(null);
+    if (!res.error) {
+      setUserList((prev) =>
+        prev.map((u) => (u.id === user.id ? { ...u, isActive: !u.isActive } : u))
+      );
+    }
+  }
+
+  function handleBranchUpdated(userId: string, newBranch: string) {
+    setUserList((prev) =>
+      prev.map((u) =>
+        u.id === userId
+          ? {
+              ...u,
+              staffProfile: u.staffProfile ? { ...u.staffProfile, branch: newBranch } : { branch: newBranch, roleType: 'ADMIN' },
+            }
+          : u
+      )
+    );
+  }
 
   return (
     <section id="user-management" style={{ marginTop: '2.5rem' }}>
@@ -353,12 +419,13 @@ export default function UserManagementSection({
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => {
+            {userList.map((u) => {
               const roleNames = u.userRoles.map((ur) => ur.role.name).join(', ') || 'NONE';
               const isSelf = u.id === currentUserId;
               const isStaff = u.userRoles.some((ur) => STAFF_ROLES.includes(ur.role.name));
               const currentBranch = u.staffProfile?.branch;
               const hasBadBranch = isStaff && (!currentBranch || currentBranch === 'Main Branch');
+              const isToggling = togglingId === u.id;
 
               return (
                 <tr key={u.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
@@ -392,6 +459,7 @@ export default function UserManagementSection({
                         currentBranch={currentBranch}
                         hasBadBranch={hasBadBranch}
                         canUpdate={canToggle}
+                        onBranchUpdated={(newBranch) => handleBranchUpdated(u.id, newBranch)}
                       />
                     ) : (
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontStyle: 'italic' }}>—</span>
@@ -415,9 +483,9 @@ export default function UserManagementSection({
                   <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
                     {canToggle && !isSelf && (
                       <button
-                        onClick={async () => {
-                          await toggleUserStatusAction(u.id);
-                        }}
+                        type="button"
+                        onClick={() => handleToggleStatus(u)}
+                        disabled={isToggling}
                         style={{
                           background: 'transparent',
                           border: '1px solid var(--border-color)',
@@ -426,9 +494,11 @@ export default function UserManagementSection({
                           borderRadius: 'var(--radius-sm)',
                           fontSize: '0.75rem',
                           fontWeight: 500,
+                          cursor: isToggling ? 'not-allowed' : 'pointer',
+                          opacity: isToggling ? 0.6 : 1,
                         }}
                       >
-                        {u.isActive ? 'Deactivate' : 'Activate'}
+                        {isToggling ? 'Updating...' : u.isActive ? 'Deactivate' : 'Activate'}
                       </button>
                     )}
                     {isSelf && (

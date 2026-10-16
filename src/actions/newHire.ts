@@ -6,27 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { RequirementStatus, OnboardingStatus } from '@prisma/client';
 
-// Standard 18 requirements per 
-const STANDARD_REQUIREMENTS = [
-  { key: 'BANK_ACCOUNT',          label: 'Bank Account' },
-  { key: 'CONTRACT_SIGNING',      label: 'Contract Signing' },
-  { key: 'VALID_ID',              label: 'Valid ID' },
-  { key: 'PROOF_OF_EDUCATION',    label: 'Proof of Education' },
-  { key: 'PROFESSIONAL_PICTURE',  label: 'Professional Picture' },
-  { key: 'INTRO_RECORDING',       label: 'Intro Recording' },
-  { key: 'NBI_CLEARANCE',         label: 'NBI Clearance' },
-  { key: 'SELF_VIDEO_INTRO',      label: 'Self-Video Introduction' },
-  { key: 'SK12_TAGGING',          label: 'SK12 Tagging' },
-  { key: 'TPCAP_TAGGING',         label: 'TPCAP Tagging' },
-  { key: 'SPECIAL_TAGGINGS',      label: 'Additional Special Taggings' },
-  { key: 'GLOBAL_TEACHER_TAGGING',label: 'Global Teacher Tagging' },
-  { key: 'FLOWERS',               label: 'Flowers' },
-  { key: 'SIGNED_DOUBLE_SA',      label: 'Signed Double SA' },
-  { key: 'TTP_ORIENTATION',       label: 'TTP Orientation' },
-  { key: 'TESOL',                 label: 'TESOL' },
-  { key: 'ZTP_TRAINING',          label: 'ZTP Training' },
-  { key: 'LEARNING_HUB',          label: 'Learning Hub' },
-] as const;
+import { STANDARD_REQUIREMENTS } from '@/lib/operations/onboardingConstants';
 
 export type NewHireActionResult = { success?: boolean; error?: string; recordId?: string };
 
@@ -41,7 +21,9 @@ function computeCompletion(statuses: RequirementStatus[]): number {
 // ── Create new hire record + seed 18 requirement rows ────────────────────────
 
 const CreateSchema = z.object({
-  teacherId: z.string().min(1),
+  teacherId: z.string().optional(),
+  teacherName: z.string().optional(),
+  teacherEmail: z.string().optional(),
   startDate: z.string().min(1),
   branch: z.string().min(2),
   project: z.string().min(1),
@@ -55,15 +37,63 @@ export async function createNewHireRecordAction(
     const parsed = CreateSchema.safeParse(data);
     if (!parsed.success) return { error: parsed.error.issues[0]?.message || 'Invalid data.' };
 
-    const existing = await prisma.newHireRecord.findUnique({ where: { teacherId: parsed.data.teacherId } });
-    if (existing) return { error: 'This teacher already has an onboarding record.' };
-
     const startDt = new Date(parsed.data.startDate);
     if (isNaN(startDt.getTime())) return { error: 'Invalid start date.' };
 
+    let targetTeacherId = parsed.data.teacherId;
+
+    // If teacherId is not supplied or is "NEW", create or resolve TeacherProfile
+    if (!targetTeacherId || targetTeacherId === 'NEW') {
+      const name = parsed.data.teacherName?.trim();
+      if (!name) {
+        return { error: 'Please choose an existing teacher or provide a teacher name.' };
+      }
+
+      const email = parsed.data.teacherEmail?.trim() || `${name.toLowerCase().replace(/[^a-z0-9]/g, '')}@netspeak.ph`;
+      
+      // Check if profile exists with this name or email
+      let teacher = await prisma.teacherProfile.findFirst({
+        where: {
+          OR: [
+            { realFullName: { equals: name, mode: 'insensitive' } },
+            { contactEmail: { equals: email, mode: 'insensitive' } },
+          ],
+        },
+      });
+
+      if (!teacher) {
+        teacher = await prisma.teacherProfile.create({
+          data: {
+            realFullName: name,
+            displayName: name,
+            contactEmail: email,
+            birthday: new Date('1998-01-01'),
+            cellphone: `+639${Math.floor(100000000 + Math.random() * 900000000)}`,
+            emergencyContactName: 'N/A',
+            emergencyContactPhone: '+639000000000',
+            address: 'Netspeak Operations Facility',
+            schoolAttended: 'N/A',
+            course: 'Education',
+            major: 'General',
+            branch: parsed.data.branch.trim(),
+            projectType: (['FTEX', 'FT', 'TTP'].includes(parsed.data.project.trim().toUpperCase())
+              ? parsed.data.project.trim().toUpperCase()
+              : 'FT') as any,
+            department: 'DOMESTIC',
+            registrationStatus: 'APPROVED',
+          },
+        });
+      }
+
+      targetTeacherId = teacher.id;
+    }
+
+    const existing = await prisma.newHireRecord.findUnique({ where: { teacherId: targetTeacherId } });
+    if (existing) return { error: 'This teacher already has an onboarding record.' };
+
     const record = await prisma.newHireRecord.create({
       data: {
-        teacherId: parsed.data.teacherId,
+        teacherId: targetTeacherId,
         startDate: startDt,
         branch: parsed.data.branch.trim(),
         project: parsed.data.project.trim(),
@@ -81,6 +111,7 @@ export async function createNewHireRecordAction(
 
     revalidatePath('/dashboard/onboarding');
     revalidatePath('/dashboard/onboarding/manage');
+    revalidatePath('/dashboard/management');
     return { success: true, recordId: record.id };
   } catch (err: any) {
     console.error('createNewHireRecordAction error:', err);
@@ -126,6 +157,7 @@ export async function updateRequirementStatusAction(
 
     revalidatePath('/dashboard/onboarding');
     revalidatePath('/dashboard/onboarding/manage');
+    revalidatePath('/dashboard/management');
     return { success: true };
   } catch (err: any) {
     console.error('updateRequirementStatusAction error:', err);
@@ -133,7 +165,7 @@ export async function updateRequirementStatusAction(
   }
 }
 
-// ── Grant slot eligibility (Admin verification step per ) ─────────────────
+// ── Grant slot eligibility (Admin verification step per spec) ─────────────────
 
 export async function verifyAndGrantSlotEligibilityAction(
   recordId: string,
@@ -145,7 +177,7 @@ export async function verifyAndGrantSlotEligibilityAction(
     const record = await prisma.newHireRecord.findUnique({ where: { id: recordId } });
     if (!record) return { error: 'Onboarding record not found.' };
 
-    // Enforce 3-day minimum window per 
+    // Enforce 3-day minimum window per spec
     const startDate = record.startDate;
     const threeDaysLater = new Date(startDate);
     threeDaysLater.setDate(threeDaysLater.getDate() + 3);
@@ -167,6 +199,7 @@ export async function verifyAndGrantSlotEligibilityAction(
 
     revalidatePath('/dashboard/onboarding');
     revalidatePath('/dashboard/onboarding/manage');
+    revalidatePath('/dashboard/management');
     return { success: true };
   } catch (err: any) {
     console.error('verifyAndGrantSlotEligibilityAction error:', err);
@@ -185,12 +218,40 @@ export type NewHireSummary = {
 };
 
 export async function getNewHireSummaryAction(): Promise<NewHireSummary> {
+  const threeDaysAgo = new Date();
+  threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
   const [total, inProgress, completed, overdue, slotsEligible] = await Promise.all([
     prisma.newHireRecord.count(),
-    prisma.newHireRecord.count({ where: { status: 'IN_PROGRESS' } }),
+    prisma.newHireRecord.count({
+      where: {
+        status: 'IN_PROGRESS',
+        startDate: { gt: threeDaysAgo },
+        slotsEligible: false,
+      },
+    }),
     prisma.newHireRecord.count({ where: { status: 'COMPLETED' } }),
-    prisma.newHireRecord.count({ where: { status: 'OVERDUE' } }),
-    prisma.newHireRecord.count({ where: { status: 'SLOTS_ELIGIBLE' } }),
+    prisma.newHireRecord.count({
+      where: {
+        OR: [
+          { status: 'OVERDUE' },
+          {
+            status: 'IN_PROGRESS',
+            startDate: { lte: threeDaysAgo },
+            slotsEligible: false,
+          },
+        ],
+      },
+    }),
+    prisma.newHireRecord.count({
+      where: {
+        OR: [
+          { status: 'SLOTS_ELIGIBLE' },
+          { slotsEligible: true },
+        ],
+      },
+    }),
   ]);
+
   return { total, inProgress, completed, overdue, slotsEligible };
 }

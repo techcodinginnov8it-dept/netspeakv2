@@ -4,6 +4,10 @@ import { requireAuth, requirePermission, PERMISSIONS } from '@/lib/auth/rbac';
 import StaffOperationsDesk from '@/components/operations/StaffOperationsDesk';
 import { getOrCreateStaffProfileAction } from '@/actions/staffOperations';
 
+// Force server re-render on every request so router.refresh() always returns
+// fresh attendance data with the latest saved checklist responses.
+export const dynamic = 'force-dynamic';
+
 export default async function OperationsDeskPage() {
   await requirePermission(PERMISSIONS.OPERATIONS_RECORD);
   const user = await requireAuth();

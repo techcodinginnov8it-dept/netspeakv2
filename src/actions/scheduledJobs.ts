@@ -1,7 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/db';
-import { requirePermission, PERMISSIONS } from '@/lib/auth/rbac';
+import { requirePermission, checkPermission, PERMISSIONS } from '@/lib/auth/rbac';
 import { revalidatePath } from 'next/cache';
 import { NotificationType, NotificationPriority } from '@prisma/client';
 import { checkEarlyTimeOffAutoApprovalsAction } from './requests';
@@ -273,7 +273,8 @@ export async function evaluateScheduledAlertsInternal() {
 /**
  * Admin/UI entry point enforcing RBAC before evaluation.
  */
-export async function runScheduledAlertsEvaluationAction() {
-  await requirePermission(PERMISSIONS.SYSTEM_JOBS);
+export async function runScheduledAlertsEvaluationAction(): Promise<{ success: boolean; alertsDispatched?: number; log?: string[]; error?: string }> {
+  const user = await checkPermission(PERMISSIONS.SYSTEM_JOBS);
+  if (!user) return { success: false, error: 'Unauthorized: You do not have permission to run alert evaluations.' };
   return evaluateScheduledAlertsInternal();
 }

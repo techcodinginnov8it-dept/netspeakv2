@@ -75,6 +75,7 @@ export default function ResignationMonitoringDashboard({
   const [branchFilter, setBranchFilter] = useState<string>('ALL');
   const [projectFilter, setProjectFilter] = useState<string>('ALL');
   const [reasonFilter, setReasonFilter] = useState<string>('ALL');
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Slot modal state
@@ -119,6 +120,10 @@ export default function ResignationMonitoringDashboard({
     }
     // Reason
     if (reasonFilter !== 'ALL' && r.reason !== reasonFilter) {
+      return false;
+    }
+    // Status
+    if (statusFilter !== 'ALL' && r.status !== statusFilter) {
       return false;
     }
     // Time filter
@@ -397,10 +402,65 @@ export default function ResignationMonitoringDashboard({
           >
             <option value="ALL">All Projects</option>
             <option value="FT">FT</option>
-            <option value="PT">PT</option>
-            <option value="SPECIAL">SPECIAL</option>
+            <option value="FTEX">FTEX</option>
+            <option value="TTP">TTP</option>
           </select>
         </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>Branch:</span>
+          <select
+            value={branchFilter}
+            onChange={(e) => setBranchFilter(e.target.value)}
+            className="input"
+            style={{ padding: '0.45rem 0.6rem', fontSize: '0.85rem' }}
+          >
+            <option value="ALL">All Branches</option>
+            <option value="Atimonan">Atimonan</option>
+            <option value="Lopez">Lopez</option>
+            <option value="Sto. Tomas">Sto. Tomas</option>
+            <option value="Mauban">Mauban</option>
+            <option value="San Pablo">San Pablo</option>
+            <option value="Gumaca">Gumaca</option>
+          </select>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>Status:</span>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="input"
+            style={{ padding: '0.45rem 0.6rem', fontSize: '0.85rem', maxWidth: '175px' }}
+          >
+            <option value="ALL">All Statuses</option>
+            <option value="SUBMITTED">Submitted</option>
+            <option value="UNDER_REVIEW">Under Review</option>
+            <option value="EXIT_INTERVIEW_SCHEDULED">Interview Scheduled</option>
+            <option value="EXIT_INTERVIEW_COMPLETED">Interview Completed</option>
+            <option value="IT_CLEARANCE_PENDING">IT Clearance Pending</option>
+            <option value="DEACTIVATED">Deactivated</option>
+            <option value="WITHDRAWN">Withdrawn</option>
+          </select>
+        </div>
+
+        {(searchQuery || timeFilter !== 'ALL' || branchFilter !== 'ALL' || projectFilter !== 'ALL' || reasonFilter !== 'ALL' || statusFilter !== 'ALL') && (
+          <button
+            type="button"
+            onClick={() => {
+              setSearchQuery('');
+              setTimeFilter('ALL');
+              setBranchFilter('ALL');
+              setProjectFilter('ALL');
+              setReasonFilter('ALL');
+              setStatusFilter('ALL');
+            }}
+            className="btn btn-secondary"
+            style={{ padding: '0.35rem 0.65rem', fontSize: '0.78rem', opacity: 0.8, whiteSpace: 'nowrap' }}
+          >
+            ✕ Clear Filters
+          </button>
+        )}
       </div>
 
       {/* Monitoring Roster Table */}

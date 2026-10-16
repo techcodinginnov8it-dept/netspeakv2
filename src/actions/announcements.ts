@@ -1,7 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/db';
-import { requirePermission } from '@/lib/auth/rbac';
+import { checkPermission } from '@/lib/auth/rbac';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
@@ -24,7 +24,8 @@ export async function createAnnouncementAction(
   data: z.infer<typeof AnnouncementSchema>
 ): Promise<AnnouncementResult> {
   try {
-    await requirePermission('announcements:create');
+    const user = await checkPermission('announcements:create');
+    if (!user) return { error: 'Unauthorized: You do not have permission to create announcements.' };
 
     const parsed = AnnouncementSchema.safeParse(data);
     if (!parsed.success) {
@@ -39,8 +40,28 @@ export async function createAnnouncementAction(
       },
     });
 
+    if (parsed.data.isActive) {
+      const allUsers = await prisma.user.findMany({
+        where: { isActive: true },
+        select: { id: true },
+      });
+      if (allUsers.length > 0) {
+        await prisma.notification.createMany({
+          data: allUsers.map((u) => ({
+            userId: u.id,
+            title: `📢 Announcement: ${parsed.data.title.trim()}`,
+            message: parsed.data.content.trim().slice(0, 200),
+            type: 'SYSTEM_NOTICE' as any,
+            priority: 'NORMAL' as any,
+            link: '/dashboard/notifications',
+          })),
+        });
+      }
+    }
+
     revalidatePath('/dashboard');
     revalidatePath('/dashboard/announcements');
+    revalidatePath('/dashboard/notifications');
     return { success: true, announcementId: created.id };
   } catch (err: any) {
     console.error('Create announcement error:', err);
@@ -56,7 +77,8 @@ export async function updateAnnouncementAction(
   data: z.infer<typeof AnnouncementSchema>
 ): Promise<AnnouncementResult> {
   try {
-    await requirePermission('announcements:manage');
+    const user = await checkPermission('announcements:manage');
+    if (!user) return { error: 'Unauthorized: You do not have permission to update announcements.' };
 
     const parsed = AnnouncementSchema.safeParse(data);
     if (!parsed.success) {
@@ -74,6 +96,7 @@ export async function updateAnnouncementAction(
 
     revalidatePath('/dashboard');
     revalidatePath('/dashboard/announcements');
+    revalidatePath('/dashboard/notifications');
     return { success: true, announcementId: id };
   } catch (err: any) {
     console.error('Update announcement error:', err);
@@ -89,7 +112,8 @@ export async function toggleAnnouncementStatusAction(
   isActive: boolean
 ): Promise<AnnouncementResult> {
   try {
-    await requirePermission('announcements:manage');
+    const user = await checkPermission('announcements:manage');
+    if (!user) return { error: 'Unauthorized: You do not have permission to update announcements.' };
 
     await prisma.announcement.update({
       where: { id },
@@ -98,6 +122,7 @@ export async function toggleAnnouncementStatusAction(
 
     revalidatePath('/dashboard');
     revalidatePath('/dashboard/announcements');
+    revalidatePath('/dashboard/notifications');
     return { success: true, announcementId: id };
   } catch (err: any) {
     console.error('Toggle announcement status error:', err);
@@ -112,7 +137,8 @@ export async function deleteAnnouncementAction(
   id: string
 ): Promise<AnnouncementResult> {
   try {
-    await requirePermission('announcements:manage');
+    const user = await checkPermission('announcements:manage');
+    if (!user) return { error: 'Unauthorized: You do not have permission to delete announcements.' };
 
     await prisma.announcement.delete({
       where: { id },
@@ -120,6 +146,7 @@ export async function deleteAnnouncementAction(
 
     revalidatePath('/dashboard');
     revalidatePath('/dashboard/announcements');
+    revalidatePath('/dashboard/notifications');
     return { success: true, announcementId: id };
   } catch (err: any) {
     console.error('Delete announcement error:', err);

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useTransition } from 'react';
 import {
@@ -15,6 +15,47 @@ import {
   IncidentCategory,
   IncidentStatus,
 } from '@prisma/client';
+
+export const BRANCHES = ['Atimonan', 'Lopez', 'Sto. Tomas', 'Mauban', 'San Pablo', 'Gumaca'];
+
+export const CONCERN_CATEGORY_LABELS: Record<ConcernCategory, string> = {
+  TECHNICAL_CONCERN: 'Technical Concern',
+  ATTENDANCE_CONCERN: 'Attendance Concern',
+  SCHEDULE_CONCERN: 'Schedule Concern',
+  STUDENT_CONCERN: 'Student Concern',
+  ADMIN_CONCERN: 'Admin Concern',
+  PROJECT_CONCERN: 'Project Concern',
+  PAYMENT_CONCERN: 'Payment Concern',
+  EMERGENCY: 'Emergency',
+  OTHER: 'Other',
+};
+
+export const TICKET_STATUS_LABELS: Record<TicketStatus, string> = {
+  SUBMITTED: 'Submitted',
+  ASSIGNED: 'Assigned',
+  UNDER_REVIEW: 'Under Review',
+  ACTION_TAKEN: 'Action Taken',
+  RESOLVED: 'Resolved',
+  CLOSED: 'Closed',
+};
+
+export const INCIDENT_CATEGORY_LABELS: Record<IncidentCategory, string> = {
+  BEHAVIORAL_MISCONDUCT: 'Behavioral Misconduct',
+  EQUIPMENT_DAMAGE: 'Equipment Damage',
+  UNAUTHORIZED_ABSENCE: 'Unauthorized Absence',
+  INTERNET_POWER_OUTAGE: 'Internet / Power Outage',
+  STUDENT_DISPUTE: 'Student Dispute',
+  SECURITY_BREACH: 'Security Breach',
+  POLICY_VIOLATION: 'Policy Violation',
+  OTHER: 'Other',
+};
+
+export const INCIDENT_STATUS_LABELS: Record<IncidentStatus, string> = {
+  REPORTED: 'Reported',
+  INVESTIGATING: 'Investigating',
+  ACTION_TAKEN: 'Action Taken',
+  RESOLVED: 'Resolved',
+};
 
 export type ManagerConcernItem = {
   id: string;
@@ -66,6 +107,8 @@ export default function OperationsTicketingDesk({
   const [concernSearch, setConcernSearch] = useState('');
 
   // Incident Filters
+  const [incidentSearch, setIncidentSearch] = useState('');
+  const [incidentCategoryFilter, setIncidentCategoryFilter] = useState<string>('ALL');
   const [incidentBranchFilter, setIncidentBranchFilter] = useState<string>('ALL');
   const [incidentStatusFilter, setIncidentStatusFilter] = useState<string>('ALL');
 
@@ -80,7 +123,7 @@ export default function OperationsTicketingDesk({
   const [showIncidentModal, setShowIncidentModal] = useState(false);
   const [incDate, setIncDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [incTime, setIncTime] = useState(() => new Date().toTimeString().slice(0, 5));
-  const [incBranch, setIncBranch] = useState('Main Branch');
+  const [incBranch, setIncBranch] = useState('Atimonan');
   const [incPerson, setIncPerson] = useState('');
   const [incCategory, setIncCategory] = useState<IncidentCategory>(IncidentCategory.BEHAVIORAL_MISCONDUCT);
   const [incDesc, setIncDesc] = useState('');
@@ -99,7 +142,12 @@ export default function OperationsTicketingDesk({
 
   // Filter Concerns
   const filteredConcerns = concerns.filter((c) => {
-    if (concernSearch && !c.teacherName.toLowerCase().includes(concernSearch.toLowerCase()) && !c.title.toLowerCase().includes(concernSearch.toLowerCase())) {
+    if (
+      concernSearch &&
+      !c.teacherName.toLowerCase().includes(concernSearch.toLowerCase()) &&
+      !c.title.toLowerCase().includes(concernSearch.toLowerCase()) &&
+      !c.description.toLowerCase().includes(concernSearch.toLowerCase())
+    ) {
       return false;
     }
     if (concernCategoryFilter !== 'ALL' && c.category !== concernCategoryFilter) return false;
@@ -109,6 +157,15 @@ export default function OperationsTicketingDesk({
 
   // Filter Incidents
   const filteredIncidents = incidents.filter((i) => {
+    if (
+      incidentSearch &&
+      !i.personInvolved.toLowerCase().includes(incidentSearch.toLowerCase()) &&
+      !i.description.toLowerCase().includes(incidentSearch.toLowerCase()) &&
+      !i.branch.toLowerCase().includes(incidentSearch.toLowerCase())
+    ) {
+      return false;
+    }
+    if (incidentCategoryFilter !== 'ALL' && i.category !== incidentCategoryFilter) return false;
     if (incidentBranchFilter !== 'ALL' && i.branch !== incidentBranchFilter) return false;
     if (incidentStatusFilter !== 'ALL' && i.status !== incidentStatusFilter) return false;
     return true;
@@ -247,10 +304,10 @@ export default function OperationsTicketingDesk({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
-            🎫 Support Desk & Incident Reports
+            🎫 Ticketing Desk
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-            Central operations management desk for Teacher Concerns and Incident Tickets.
+            Manage teacher concerns and incident reports.
           </p>
         </div>
 
@@ -261,7 +318,7 @@ export default function OperationsTicketingDesk({
             className="btn btn-primary"
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
           >
-            <span>⚠️ï¸</span>
+            <span>⚠️</span>
             <span>File Incident Report</span>
           </button>
         )}
@@ -314,7 +371,7 @@ export default function OperationsTicketingDesk({
             padding: '0.5rem 1.25rem',
           }}
         >
-          ⚠️ï¸ Incident Reports ({incidents.length})
+          ⚠️ Incident Reports ({incidents.length})
         </button>
       </div>
 
@@ -335,11 +392,11 @@ export default function OperationsTicketingDesk({
           >
             <input
               type="text"
-              placeholder="Search teacher or issue..."
+              placeholder="Search teacher, title, or description..."
               value={concernSearch}
               onChange={(e) => setConcernSearch(e.target.value)}
               className="input"
-              style={{ minWidth: '200px', flex: 1, padding: '0.45rem 0.75rem', fontSize: '0.85rem' }}
+              style={{ minWidth: '220px', flex: 1, padding: '0.45rem 0.75rem', fontSize: '0.85rem' }}
             />
 
             <select
@@ -349,15 +406,11 @@ export default function OperationsTicketingDesk({
               style={{ padding: '0.45rem 0.6rem', fontSize: '0.85rem' }}
             >
               <option value="ALL">All Categories</option>
-              <option value="TECHNICAL_CONCERN">Technical Concern</option>
-              <option value="ATTENDANCE_CONCERN">Attendance Concern</option>
-              <option value="SCHEDULE_CONCERN">Schedule Concern</option>
-              <option value="STUDENT_CONCERN">Student Concern</option>
-              <option value="ADMIN_CONCERN">Admin Concern</option>
-              <option value="PROJECT_CONCERN">Project Concern</option>
-              <option value="PAYMENT_CONCERN">Payment Concern</option>
-              <option value="EMERGENCY">Emergency</option>
-              <option value="OTHER">Other</option>
+              {Object.entries(CONCERN_CATEGORY_LABELS).map(([catKey, catLabel]) => (
+                <option key={catKey} value={catKey}>
+                  {catLabel}
+                </option>
+              ))}
             </select>
 
             <select
@@ -367,12 +420,11 @@ export default function OperationsTicketingDesk({
               style={{ padding: '0.45rem 0.6rem', fontSize: '0.85rem' }}
             >
               <option value="ALL">All Statuses</option>
-              <option value="SUBMITTED">SUBMITTED</option>
-              <option value="ASSIGNED">ASSIGNED</option>
-              <option value="UNDER_REVIEW">UNDER_REVIEW</option>
-              <option value="ACTION_TAKEN">ACTION_TAKEN</option>
-              <option value="RESOLVED">RESOLVED</option>
-              <option value="CLOSED">CLOSED</option>
+              {Object.entries(TICKET_STATUS_LABELS).map(([statKey, statLabel]) => (
+                <option key={statKey} value={statKey}>
+                  {statLabel}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -409,7 +461,7 @@ export default function OperationsTicketingDesk({
                         </div>
                       </td>
                       <td style={{ padding: '0.85rem 1rem', fontSize: '0.8rem', color: 'var(--text-dim)' }}>
-                        {c.category}
+                        {CONCERN_CATEGORY_LABELS[c.category] || c.category}
                       </td>
                       <td style={{ padding: '0.85rem 1rem' }}>
                         <span
@@ -433,12 +485,20 @@ export default function OperationsTicketingDesk({
                             fontWeight: 700,
                             padding: '0.2rem 0.6rem',
                             borderRadius: '9999px',
-                            backgroundColor: c.status === 'RESOLVED' ? 'rgba(13, 148, 136, 0.12)' : 'rgba(217, 119, 6, 0.12)',
-                            color: c.status === 'RESOLVED' ? '#0F766E' : '#B45309',
-                            border: `1px solid ${c.status === 'RESOLVED' ? 'rgba(13, 148, 136, 0.25)' : 'rgba(217, 119, 6, 0.25)'}`,
+                            backgroundColor:
+                              c.status === 'RESOLVED' || c.status === 'CLOSED'
+                                ? 'rgba(13, 148, 136, 0.12)'
+                                : 'rgba(217, 119, 6, 0.12)',
+                            color:
+                              c.status === 'RESOLVED' || c.status === 'CLOSED' ? '#0F766E' : '#B45309',
+                            border: `1px solid ${
+                              c.status === 'RESOLVED' || c.status === 'CLOSED'
+                                ? 'rgba(13, 148, 136, 0.25)'
+                                : 'rgba(217, 119, 6, 0.25)'
+                            }`,
                           }}
                         >
-                          {c.status}
+                          {TICKET_STATUS_LABELS[c.status] || c.status}
                         </span>
                       </td>
                       <td style={{ padding: '0.85rem 1rem', fontSize: '0.85rem' }}>
@@ -483,9 +543,33 @@ export default function OperationsTicketingDesk({
               display: 'flex',
               gap: '1rem',
               alignItems: 'center',
+              flexWrap: 'wrap',
               backgroundColor: 'var(--bg-secondary)',
             }}
           >
+            <input
+              type="text"
+              placeholder="Search person, branch, or description..."
+              value={incidentSearch}
+              onChange={(e) => setIncidentSearch(e.target.value)}
+              className="input"
+              style={{ minWidth: '220px', flex: 1, padding: '0.45rem 0.75rem', fontSize: '0.85rem' }}
+            />
+
+            <select
+              value={incidentCategoryFilter}
+              onChange={(e) => setIncidentCategoryFilter(e.target.value)}
+              className="input"
+              style={{ padding: '0.45rem 0.6rem', fontSize: '0.85rem' }}
+            >
+              <option value="ALL">All Categories</option>
+              {Object.entries(INCIDENT_CATEGORY_LABELS).map(([catKey, catLabel]) => (
+                <option key={catKey} value={catKey}>
+                  {catLabel}
+                </option>
+              ))}
+            </select>
+
             <select
               value={incidentBranchFilter}
               onChange={(e) => setIncidentBranchFilter(e.target.value)}
@@ -493,8 +577,11 @@ export default function OperationsTicketingDesk({
               style={{ padding: '0.45rem 0.6rem', fontSize: '0.85rem' }}
             >
               <option value="ALL">All Branches</option>
-              <option value="Main Branch">Main Branch</option>
-              <option value="Branch 2">Branch 2</option>
+              {BRANCHES.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
             </select>
 
             <select
@@ -504,10 +591,11 @@ export default function OperationsTicketingDesk({
               style={{ padding: '0.45rem 0.6rem', fontSize: '0.85rem' }}
             >
               <option value="ALL">All Statuses</option>
-              <option value="REPORTED">REPORTED</option>
-              <option value="INVESTIGATING">INVESTIGATING</option>
-              <option value="ACTION_TAKEN">ACTION_TAKEN</option>
-              <option value="RESOLVED">RESOLVED</option>
+              {Object.entries(INCIDENT_STATUS_LABELS).map(([statKey, statLabel]) => (
+                <option key={statKey} value={statKey}>
+                  {statLabel}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -542,7 +630,7 @@ export default function OperationsTicketingDesk({
                       <td style={{ padding: '0.85rem 1rem', fontWeight: 500 }}>{inc.branch}</td>
                       <td style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>{inc.personInvolved}</td>
                       <td style={{ padding: '0.85rem 1rem', fontSize: '0.8rem', color: 'var(--text-dim)' }}>
-                        {inc.category}
+                        {INCIDENT_CATEGORY_LABELS[inc.category] || inc.category}
                       </td>
                       <td style={{ padding: '0.85rem 1rem', maxWidth: '300px' }}>
                         <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -556,12 +644,28 @@ export default function OperationsTicketingDesk({
                             fontWeight: 700,
                             padding: '0.2rem 0.6rem',
                             borderRadius: '9999px',
-                            backgroundColor: inc.status === 'RESOLVED' ? 'rgba(15, 118, 110, 0.1)' : 'rgba(220, 38, 38, 0.1)',
-                            border: `1px solid ${inc.status === 'RESOLVED' ? 'rgba(15, 118, 110, 0.35)' : 'rgba(220, 38, 38, 0.35)'}`,
-                            color: inc.status === 'RESOLVED' ? '#0F766E' : '#DC2626',
+                            backgroundColor:
+                              inc.status === 'RESOLVED'
+                                ? 'rgba(15, 118, 110, 0.1)'
+                                : inc.status === 'INVESTIGATING'
+                                ? 'rgba(217, 119, 6, 0.1)'
+                                : 'rgba(220, 38, 38, 0.1)',
+                            border: `1px solid ${
+                              inc.status === 'RESOLVED'
+                                ? 'rgba(15, 118, 110, 0.35)'
+                                : inc.status === 'INVESTIGATING'
+                                ? 'rgba(217, 119, 6, 0.35)'
+                                : 'rgba(220, 38, 38, 0.35)'
+                            }`,
+                            color:
+                              inc.status === 'RESOLVED'
+                                ? '#0F766E'
+                                : inc.status === 'INVESTIGATING'
+                                ? '#B45309'
+                                : '#DC2626',
                           }}
                         >
-                          {inc.status}
+                          {INCIDENT_STATUS_LABELS[inc.status] || inc.status}
                         </span>
                       </td>
                       <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
@@ -644,12 +748,11 @@ export default function OperationsTicketingDesk({
                     className="input"
                     style={{ width: '100%', padding: '0.5rem 0.75rem' }}
                   >
-                    <option value="SUBMITTED">SUBMITTED</option>
-                    <option value="ASSIGNED">ASSIGNED</option>
-                    <option value="UNDER_REVIEW">UNDER_REVIEW</option>
-                    <option value="ACTION_TAKEN">ACTION_TAKEN</option>
-                    <option value="RESOLVED">RESOLVED</option>
-                    <option value="CLOSED">CLOSED</option>
+                    {Object.entries(TICKET_STATUS_LABELS).map(([statKey, statLabel]) => (
+                      <option key={statKey} value={statKey}>
+                        {statLabel}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -767,7 +870,7 @@ export default function OperationsTicketingDesk({
 
                 <div>
                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.35rem' }}>
-                    Incident Time <span style={{ color: 'var(--danger)' }}>*</span>
+                    Incident Time <span style={{ color: 'danger' }}>*</span>
                   </label>
                   <input
                     type="time"
@@ -785,14 +888,19 @@ export default function OperationsTicketingDesk({
                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.35rem' }}>
                     Branch <span style={{ color: 'var(--danger)' }}>*</span>
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={incBranch}
                     onChange={(e) => setIncBranch(e.target.value)}
                     required
                     className="input"
                     style={{ width: '100%', padding: '0.5rem 0.75rem' }}
-                  />
+                  >
+                    {BRANCHES.map((b) => (
+                      <option key={b} value={b}>
+                        {b}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>

@@ -2,77 +2,9 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import type { ManagementDashboardData } from '@/types/management';
 
-export type ManagementDashboardData = {
-  // Teacher Overview
-  teacherStats: {
-    totalTeachers: number;
-    activeTeachers: number;
-    onLeaveTeachers: number;
-    resignedTeachers: number;
-    branchBreakdown: { branch: string; count: number }[];
-    projectBreakdown: { project: string; count: number }[];
-  };
-  // Today Attendance & Daily Output
-  operationsToday: {
-    presentCount: number;
-    lateCount: number;
-    absentCount: number;
-    totalAttendanceToday: number;
-    totalClassesToday: number;
-    totalRegularDoneToday: number;
-    totalTrialDoneToday: number;
-  };
-  // Resignation & Attrition
-  resignationStats: {
-    pendingCount: number;
-    approvedCount: number;
-    completedCount: number;
-    totalThisMonth: number;
-    topReasons: { reason: string; count: number }[];
-    branchBreakdown: { branch: string; count: number }[];
-  };
-  // Onboarding Pipeline
-  onboardingStats: {
-    total: number;
-    inProgress: number;
-    completed: number;
-    slotsEligible: number;
-    overdue: number;
-  };
-  // Tickets & Incidents
-  concernStats: {
-    openTickets: number;
-    resolvedTickets: number;
-    totalTickets: number;
-    openIncidents: number;
-    resolvedIncidents: number;
-    totalIncidents: number;
-    byCategory: { category: string; count: number }[];
-  };
-  // Workstation / Seating
-  seatingStats: {
-    totalWorkstations: number;
-    occupiedWorkstations: number;
-    availableWorkstations: number;
-    maintenanceWorkstations: number;
-  };
-  // Low-Booking Intelligence
-  lowBookingTeachers?: {
-    teacherId: string;
-    realFullName: string;
-    displayName: string;
-    branch: string | null;
-    projectType: string;
-    department: string;
-    consecutiveLowDays: number;
-    averageBookingRate: number;
-    lastBookedSlots: number;
-    lastOpenSlots: number;
-    severity: 'DAILY' | 'URGENT' | 'CRITICAL';
-    recommendedAction: string;
-  }[];
-};
+export type { ManagementDashboardData } from '@/types/management';
 
 type PanelTab = 'OVERVIEW' | 'TEACHERS' | 'OPERATIONS' | 'RESIGNATIONS' | 'ONBOARDING' | 'CONCERNS' | 'LOW_BOOKING';
 
@@ -399,7 +331,7 @@ export default function ManagementDashboard({ data }: { data: ManagementDashboar
               </div>
             </div>
             <div style={{ marginTop: '1rem', textAlign: 'right' }}>
-              <Link href="/dashboard/resignations" style={{ color: 'var(--ns-blue)', fontSize: '0.85rem', textDecoration: 'none' }}>
+              <Link href="/dashboard/resignation/monitoring" style={{ color: 'var(--ns-blue)', fontSize: '0.85rem', textDecoration: 'none' }}>
                 Manage Resignations &rarr;
               </Link>
             </div>
@@ -450,8 +382,26 @@ export default function ManagementDashboard({ data }: { data: ManagementDashboar
                 <span style={{ color: '#DC2626', fontWeight: 700 }}>{onboardingStats.overdue}</span>
               </div>
             </div>
-            <div style={{ marginTop: '1rem', textAlign: 'right' }}>
-              <Link href="/dashboard/onboarding/manage" style={{ color: 'var(--ns-blue)', fontSize: '0.85rem', textDecoration: 'none' }}>
+            <div style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <Link
+                href="/dashboard/onboarding/manage"
+                id="btn-mgmt-add-hire"
+                style={{
+                  background: 'var(--ns-blue)',
+                  color: '#fff',
+                  padding: '0.45rem 1rem',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                }}
+              >
+                <span>➕</span> Add Hire
+              </Link>
+              <Link href="/dashboard/onboarding/manage" style={{ color: 'var(--ns-blue)', fontSize: '0.85rem', textDecoration: 'none', fontWeight: 600 }}>
                 Open New Hire Desk &rarr;
               </Link>
             </div>
@@ -498,7 +448,7 @@ export default function ManagementDashboard({ data }: { data: ManagementDashboar
               </div>
             </div>
             <div style={{ marginTop: '1.25rem', textAlign: 'right' }}>
-              <Link href="/dashboard/concerns" style={{ color: 'var(--ns-blue)', fontSize: '0.85rem', textDecoration: 'none' }}>
+              <Link href="/dashboard/concerns/manage" style={{ color: 'var(--ns-blue)', fontSize: '0.85rem', textDecoration: 'none' }}>
                 Go to Concerns Ticketing Desk &rarr;
               </Link>
             </div>

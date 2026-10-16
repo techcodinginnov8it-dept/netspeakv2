@@ -1,7 +1,7 @@
-﻿'use server';
+'use server';
 
 import { prisma } from '@/lib/db';
-import { requirePermission, requireAuth } from '@/lib/auth/rbac';
+import { requireAuth, checkPermission } from '@/lib/auth/rbac';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { SeatStatus } from '@prisma/client';
@@ -9,6 +9,7 @@ import { SeatStatus } from '@prisma/client';
 export type SeatingActionResult = {
   success?: boolean;
   error?: string;
+  workstation?: any;
 };
 
 const AddWorkstationSchema = z.object({
@@ -23,7 +24,9 @@ export async function addWorkstationAction(
   data: z.infer<typeof AddWorkstationSchema>
 ): Promise<SeatingActionResult> {
   try {
-    await requirePermission('seating:manage');
+    const user = await checkPermission('seating:manage');
+    if (!user) return { error: 'Unauthorized. You do not have permission to manage seating.' };
+
     const parsed = AddWorkstationSchema.safeParse(data);
     if (!parsed.success) {
       return { error: parsed.error.issues[0]?.message || 'Invalid workstation data.' };
@@ -37,13 +40,13 @@ export async function addWorkstationAction(
       return { error: `${workstationNo} already exists in ${branch}.` };
     }
 
-    await prisma.workstation.create({
+    const created = await prisma.workstation.create({
       data: { branch, workstationNo, seatNo, specs: specs?.trim() || null, notes: notes?.trim() || null, status: SeatStatus.AVAILABLE },
     });
 
     revalidatePath('/dashboard/seating');
     revalidatePath('/dashboard/seating/manage');
-    return { success: true };
+    return { success: true, workstation: created };
   } catch (err: any) {
     console.error('addWorkstationAction error:', err);
     return { error: err.message || 'Failed to add workstation.' };
@@ -56,7 +59,9 @@ export async function updateWorkstationStatusAction(
   notes?: string
 ): Promise<SeatingActionResult> {
   try {
-    await requirePermission('seating:manage');
+    const user = await checkPermission('seating:manage');
+    if (!user) return { error: 'Unauthorized. You do not have permission to manage seating.' };
+
     await prisma.workstation.update({
       where: { id: workstationId },
       data: { status, notes: notes !== undefined ? notes.trim() : undefined },
@@ -74,7 +79,9 @@ export async function deleteWorkstationAction(
   workstationId: string
 ): Promise<SeatingActionResult> {
   try {
-    await requirePermission('seating:manage');
+    const user = await checkPermission('seating:manage');
+    if (!user) return { error: 'Unauthorized. You do not have permission to manage seating.' };
+
     const ws = await prisma.workstation.findUnique({
       where: { id: workstationId },
       include: { assignment: true },
@@ -103,7 +110,9 @@ export async function assignTeacherToSeatAction(
   data: z.infer<typeof AssignSchema>
 ): Promise<SeatingActionResult> {
   try {
-    const actor = await requirePermission('seating:manage');
+    const actor = await checkPermission('seating:manage');
+    if (!actor) return { error: 'Unauthorized. You do not have permission to manage seating.' };
+
     const parsed = AssignSchema.safeParse(data);
     if (!parsed.success) {
       return { error: parsed.error.issues[0]?.message || 'Invalid assignment data.' };
@@ -155,7 +164,9 @@ export async function unassignTeacherAction(
   reason: 'RESIGNED' | 'AWOL' | 'TRANSFER' | 'MANUAL'
 ): Promise<SeatingActionResult> {
   try {
-    const actor = await requirePermission('seating:manage');
+    const actor = await checkPermission('seating:manage');
+    if (!actor) return { error: 'Unauthorized. You do not have permission to manage seating.' };
+
     const ws = await prisma.workstation.findUnique({
       where: { id: workstationId },
       include: { assignment: true },

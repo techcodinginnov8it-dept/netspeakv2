@@ -40,8 +40,12 @@ export default function NotificationBell() {
 
   useEffect(() => {
     fetchNotifications();
-    // Poll every 30 seconds for background alerts
-    const interval = setInterval(fetchNotifications, 30000);
+    // Poll every 45s only when tab is visible to avoid unnecessary background DB load
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchNotifications();
+      }
+    }, 45000);
     return () => clearInterval(interval);
   }, []);
 

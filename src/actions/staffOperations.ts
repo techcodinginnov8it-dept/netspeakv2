@@ -120,31 +120,43 @@ export async function submitStaffChecklistAction(data: z.infer<typeof submitChec
     return { success: false, error: 'Staff attendance record not found.' };
   }
 
+  if (attendance.timeOut) {
+    return {
+      success: false,
+      error: 'Shift has already ended (Time Out recorded). Checklist is finalized and locked from editing.',
+    };
+  }
+
   const now = new Date();
 
-  for (const item of parsed.items) {
-    await prisma.staffChecklistResponse.upsert({
-      where: {
-        attendanceId_taskKey: {
-          attendanceId: parsed.attendanceId,
-          taskKey: item.taskKey,
-        },
-      },
-      update: {
-        isCompleted: item.isCompleted,
-        completedAt: item.isCompleted ? now : null,
-        notes: item.notes || null,
-      },
-      create: {
-        attendanceId: parsed.attendanceId,
-        taskCategory: item.taskCategory,
-        taskKey: item.taskKey,
-        taskLabel: item.taskLabel,
-        isCompleted: item.isCompleted,
-        completedAt: item.isCompleted ? now : null,
-        notes: item.notes || null,
-      },
-    });
+  // Execute all checklist item upserts in a single fast batched transaction round-trip
+  if (parsed.items.length > 0) {
+    await prisma.$transaction(
+      parsed.items.map((item) =>
+        prisma.staffChecklistResponse.upsert({
+          where: {
+            attendanceId_taskKey: {
+              attendanceId: parsed.attendanceId,
+              taskKey: item.taskKey,
+            },
+          },
+          update: {
+            isCompleted: item.isCompleted,
+            completedAt: item.isCompleted ? now : null,
+            notes: item.notes || null,
+          },
+          create: {
+            attendanceId: parsed.attendanceId,
+            taskCategory: item.taskCategory,
+            taskKey: item.taskKey,
+            taskLabel: item.taskLabel,
+            isCompleted: item.isCompleted,
+            completedAt: item.isCompleted ? now : null,
+            notes: item.notes || null,
+          },
+        })
+      )
+    );
   }
 
   // Check if all mandatory daily tasks for this role are fulfilled

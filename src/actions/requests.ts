@@ -63,7 +63,31 @@ export async function submitSRDRequestAction(formData: FormData) {
       },
     });
 
+    // Notify managers of new SRD request
+    const managers = await prisma.user.findMany({
+      where: {
+        isActive: true,
+        userRoles: {
+          some: { role: { name: { in: ['ADMIN', 'OPERATIONS_MANAGER', 'SYSTEM_ADMINISTRATOR'] } } },
+        },
+      },
+      select: { id: true },
+    });
+    if (managers.length > 0) {
+      await prisma.notification.createMany({
+        data: managers.map((m) => ({
+          userId: m.id,
+          title: 'New Switch Rest Day (SRD) Request',
+          message: `${teacher.displayName} requested to switch rest day (${parsed.data.originalRestDay}) to work on ${workDate.toLocaleDateString()}.`,
+          type: 'REQUEST_STATUS' as any,
+          priority: 'NORMAL' as any,
+          link: '/dashboard/requests',
+        })),
+      });
+    }
+
     revalidatePath('/dashboard/requests');
+    revalidatePath('/dashboard/notifications');
     return { success: true, requestId: request.id };
   } catch (err: any) {
     console.error('SRD request error:', err);
@@ -127,8 +151,22 @@ export async function approveSRDRequestAction(requestId: string, remarks?: strin
     });
   });
 
+  if (req.teacher?.userId) {
+    await prisma.notification.create({
+      data: {
+        userId: req.teacher.userId,
+        title: 'Switch Rest Day (SRD) Approved',
+        message: `Your SRD request to switch rest day and work on ${new Date(req.switchedWorkDate).toLocaleDateString()} was approved.`,
+        type: 'REQUEST_STATUS' as any,
+        priority: 'NORMAL' as any,
+        link: '/dashboard/requests',
+      },
+    });
+  }
+
   revalidatePath('/dashboard/requests');
   revalidatePath('/dashboard/attendance');
+  revalidatePath('/dashboard/notifications');
   return { success: true };
 }
 
@@ -142,6 +180,15 @@ export async function rejectSRDRequestAction(requestId: string, remarks: string)
     throw new Error('A reason is required to reject an SRD request.');
   }
 
+  const req = await prisma.switchRestDayRequest.findUnique({
+    where: { id: requestId },
+    include: { teacher: true },
+  });
+
+  if (!req) {
+    throw new Error('SRD request not found.');
+  }
+
   await prisma.switchRestDayRequest.update({
     where: { id: requestId },
     data: {
@@ -152,7 +199,21 @@ export async function rejectSRDRequestAction(requestId: string, remarks: string)
     },
   });
 
+  if (req.teacher?.userId) {
+    await prisma.notification.create({
+      data: {
+        userId: req.teacher.userId,
+        title: 'Switch Rest Day (SRD) Rejected',
+        message: `Your SRD request was rejected: "${remarks.trim()}".`,
+        type: 'REQUEST_STATUS' as any,
+        priority: 'HIGH' as any,
+        link: '/dashboard/requests',
+      },
+    });
+  }
+
   revalidatePath('/dashboard/requests');
+  revalidatePath('/dashboard/notifications');
   return { success: true };
 }
 
@@ -209,7 +270,31 @@ export async function submitEarlyTimeOffAction(formData: FormData) {
       },
     });
 
+    // Notify managers of urgent ETO request
+    const managers = await prisma.user.findMany({
+      where: {
+        isActive: true,
+        userRoles: {
+          some: { role: { name: { in: ['ADMIN', 'OPERATIONS_MANAGER', 'SYSTEM_ADMINISTRATOR'] } } },
+        },
+      },
+      select: { id: true },
+    });
+    if (managers.length > 0) {
+      await prisma.notification.createMany({
+        data: managers.map((m) => ({
+          userId: m.id,
+          title: 'Urgent Early Time-Off (ETO) Request',
+          message: `${teacher.displayName} submitted an Early Time-Off request for ${new Date(shiftDate).toLocaleDateString()}. Subject to 30-min auto-approval window.`,
+          type: 'REQUEST_STATUS' as any,
+          priority: 'URGENT' as any,
+          link: '/dashboard/requests',
+        })),
+      });
+    }
+
     revalidatePath('/dashboard/requests');
+    revalidatePath('/dashboard/notifications');
     return { success: true, requestId: req.id };
   } catch (err: any) {
     console.error('Early time-off submission error:', err);
@@ -228,6 +313,7 @@ export async function checkEarlyTimeOffAutoApprovalsAction() {
       status: 'PENDING',
       expiresAt: { lte: now },
     },
+    include: { teacher: true },
   });
 
   for (const item of expired) {
@@ -239,10 +325,24 @@ export async function checkEarlyTimeOffAutoApprovalsAction() {
         approvedAt: now,
       },
     });
+
+    if (item.teacher?.userId) {
+      await prisma.notification.create({
+        data: {
+          userId: item.teacher.userId,
+          title: 'Early Time-Off (ETO) Auto-Approved',
+          message: 'Your Early Time-Off request was auto-approved as the 30-minute manager review window elapsed.',
+          type: 'REQUEST_STATUS' as any,
+          priority: 'NORMAL' as any,
+          link: '/dashboard/requests',
+        },
+      });
+    }
   }
 
   if (expired.length > 0) {
     revalidatePath('/dashboard/requests');
+    revalidatePath('/dashboard/notifications');
   }
 
   return { autoApprovedCount: expired.length };
@@ -254,6 +354,12 @@ export async function checkEarlyTimeOffAutoApprovalsAction() {
 export async function approveEarlyTimeOffAction(requestId: string, remarks?: string) {
   const user = await requirePermission('requests:approve');
 
+  const req = await prisma.earlyTimeOffRequest.findUnique({
+    where: { id: requestId },
+    include: { teacher: true },
+  });
+  if (!req) throw new Error('Early time-off request not found.');
+
   await prisma.earlyTimeOffRequest.update({
     where: { id: requestId },
     data: {
@@ -264,7 +370,21 @@ export async function approveEarlyTimeOffAction(requestId: string, remarks?: str
     },
   });
 
+  if (req.teacher?.userId) {
+    await prisma.notification.create({
+      data: {
+        userId: req.teacher.userId,
+        title: 'Early Time-Off (ETO) Approved',
+        message: 'Your Early Time-Off request has been approved by management.',
+        type: 'REQUEST_STATUS' as any,
+        priority: 'NORMAL' as any,
+        link: '/dashboard/requests',
+      },
+    });
+  }
+
   revalidatePath('/dashboard/requests');
+  revalidatePath('/dashboard/notifications');
   return { success: true };
 }
 
@@ -278,6 +398,12 @@ export async function rejectEarlyTimeOffAction(requestId: string, remarks: strin
     throw new Error('A reason is required to reject an Early Time-Off request.');
   }
 
+  const req = await prisma.earlyTimeOffRequest.findUnique({
+    where: { id: requestId },
+    include: { teacher: true },
+  });
+  if (!req) throw new Error('Early time-off request not found.');
+
   await prisma.earlyTimeOffRequest.update({
     where: { id: requestId },
     data: {
@@ -288,7 +414,21 @@ export async function rejectEarlyTimeOffAction(requestId: string, remarks: strin
     },
   });
 
+  if (req.teacher?.userId) {
+    await prisma.notification.create({
+      data: {
+        userId: req.teacher.userId,
+        title: 'Early Time-Off (ETO) Rejected',
+        message: `Your Early Time-Off request was rejected: "${remarks.trim()}".`,
+        type: 'REQUEST_STATUS' as any,
+        priority: 'HIGH' as any,
+        link: '/dashboard/requests',
+      },
+    });
+  }
+
   revalidatePath('/dashboard/requests');
+  revalidatePath('/dashboard/notifications');
   return { success: true };
 }
 
@@ -344,7 +484,31 @@ export async function submitCashLoanRequestAction(formData: FormData) {
       },
     });
 
+    // Notify managers of new Cash Loan request
+    const managers = await prisma.user.findMany({
+      where: {
+        isActive: true,
+        userRoles: {
+          some: { role: { name: { in: ['ADMIN', 'OPERATIONS_MANAGER', 'SYSTEM_ADMINISTRATOR'] } } },
+        },
+      },
+      select: { id: true },
+    });
+    if (managers.length > 0) {
+      await prisma.notification.createMany({
+        data: managers.map((m) => ({
+          userId: m.id,
+          title: 'New Cash Loan Request',
+          message: `${teacher.displayName} requested a Cash Loan of PHP ${Number(parsed.data.amount).toLocaleString()} (${parsed.data.termMonths} months).`,
+          type: 'REQUEST_STATUS' as any,
+          priority: 'NORMAL' as any,
+          link: '/dashboard/requests',
+        })),
+      });
+    }
+
     revalidatePath('/dashboard/requests');
+    revalidatePath('/dashboard/notifications');
     return { success: true, requestId: request.id };
   } catch (error: any) {
     console.error('Cash loan submission failed:', error);
@@ -355,7 +519,10 @@ export async function submitCashLoanRequestAction(formData: FormData) {
 export async function approveCashLoanRequestAction(requestId: string, remarks?: string) {
   const user = await requirePermission('requests:approve');
 
-  const request = await prisma.cashLoanRequest.findUnique({ where: { id: requestId } });
+  const request = await prisma.cashLoanRequest.findUnique({
+    where: { id: requestId },
+    include: { teacher: true },
+  });
   if (!request) {
     throw new Error('Cash loan request not found.');
   }
@@ -370,7 +537,21 @@ export async function approveCashLoanRequestAction(requestId: string, remarks?: 
     },
   });
 
+  if (request.teacher?.userId) {
+    await prisma.notification.create({
+      data: {
+        userId: request.teacher.userId,
+        title: 'Cash Loan Request Approved',
+        message: `Your Cash Loan request for PHP ${Number(request.amount).toLocaleString()} has been approved.`,
+        type: 'REQUEST_STATUS' as any,
+        priority: 'NORMAL' as any,
+        link: '/dashboard/requests',
+      },
+    });
+  }
+
   revalidatePath('/dashboard/requests');
+  revalidatePath('/dashboard/notifications');
   return { success: true };
 }
 
@@ -379,6 +560,14 @@ export async function rejectCashLoanRequestAction(requestId: string, remarks: st
 
   if (!remarks || remarks.trim().length < 3) {
     throw new Error('A rejection reason is required.');
+  }
+
+  const request = await prisma.cashLoanRequest.findUnique({
+    where: { id: requestId },
+    include: { teacher: true },
+  });
+  if (!request) {
+    throw new Error('Cash loan request not found.');
   }
 
   await prisma.cashLoanRequest.update({
@@ -391,6 +580,20 @@ export async function rejectCashLoanRequestAction(requestId: string, remarks: st
     },
   });
 
+  if (request.teacher?.userId) {
+    await prisma.notification.create({
+      data: {
+        userId: request.teacher.userId,
+        title: 'Cash Loan Request Rejected',
+        message: `Your Cash Loan request was rejected: "${remarks.trim()}".`,
+        type: 'REQUEST_STATUS' as any,
+        priority: 'HIGH' as any,
+        link: '/dashboard/requests',
+      },
+    });
+  }
+
   revalidatePath('/dashboard/requests');
+  revalidatePath('/dashboard/notifications');
   return { success: true };
 }

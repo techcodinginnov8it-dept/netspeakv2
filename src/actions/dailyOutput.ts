@@ -139,3 +139,83 @@ export async function getActiveAnnouncementsAction() {
     orderBy: { createdAt: 'desc' },
   });
 }
+
+/**
+ * Record or update daily output on behalf of a teacher (Admin, Operations Manager, Management override)
+ */
+export async function adminRecordDailyOutputAction(data: {
+  teacherId: string;
+  date: string;
+  openSlots: number;
+  bookedSlots: number;
+  classTardiness: number;
+  absentClasses: number;
+  earlyLeaveClasses: number;
+  remarks?: string;
+}): Promise<DailyOutputResult> {
+  try {
+    const user = await requireAuth();
+
+    // Verify administrative authority
+    const isAuthorized =
+      user.roles.includes('SYSTEM_ADMINISTRATOR') ||
+      user.roles.includes('ADMIN') ||
+      user.roles.includes('OPERATIONS_MANAGER') ||
+      user.roles.includes('MANAGEMENT');
+
+    if (!isAuthorized) {
+      return { error: 'Unauthorized to record administrative daily output reports.' };
+    }
+
+    if (!data.teacherId) {
+      return { error: 'Teacher must be selected.' };
+    }
+
+    const targetDate = data.date ? normalizeDate(new Date(data.date)) : normalizeDate();
+
+    const existing = await prisma.dailyOutput.findUnique({
+      where: {
+        teacherId_date: {
+          teacherId: data.teacherId,
+          date: targetDate,
+        },
+      },
+    });
+
+    if (existing) {
+      const updated = await prisma.dailyOutput.update({
+        where: { id: existing.id },
+        data: {
+          openSlots: Number(data.openSlots) || 0,
+          bookedSlots: Number(data.bookedSlots) || 0,
+          classTardiness: Number(data.classTardiness) || 0,
+          absentClasses: Number(data.absentClasses) || 0,
+          earlyLeaveClasses: Number(data.earlyLeaveClasses) || 0,
+          remarks: data.remarks?.trim() || null,
+        },
+      });
+      revalidatePath('/dashboard/output');
+      return { success: true, outputId: updated.id };
+    }
+
+    const created = await prisma.dailyOutput.create({
+      data: {
+        teacherId: data.teacherId,
+        date: targetDate,
+        openSlots: Number(data.openSlots) || 0,
+        bookedSlots: Number(data.bookedSlots) || 0,
+        classTardiness: Number(data.classTardiness) || 0,
+        absentClasses: Number(data.absentClasses) || 0,
+        earlyLeaveClasses: Number(data.earlyLeaveClasses) || 0,
+        remarks: data.remarks?.trim() || null,
+        announcementAcknowledged: true,
+      },
+    });
+
+    revalidatePath('/dashboard/output');
+    return { success: true, outputId: created.id };
+  } catch (err: any) {
+    console.error('adminRecordDailyOutputAction error:', err);
+    return { error: err.message || 'Failed to record teacher output report.' };
+  }
+}

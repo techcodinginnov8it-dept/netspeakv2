@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import React, { useState, useTransition, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { submitStaffChecklistAction } from '@/actions/staffOperations';
 import { IT_WEEKLY_CHECKLIST, IT_MONTHLY_CHECKLIST } from '@/lib/operations/checklists';
 
@@ -22,17 +23,49 @@ interface Props {
 type ActiveTab = 'WEEKLY' | 'MONTHLY';
 
 export default function ITSchedulesClient({ weeklySubmissions, monthlySubmissions }: Props) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<ActiveTab>('WEEKLY');
-  const [weeklyChecks, setWeeklyChecks] = useState<Record<string, boolean>>(
-    Object.fromEntries(IT_WEEKLY_CHECKLIST.map(item => [item.key, false]))
+  const [weeklyChecks, setWeeklyChecks] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(
+      IT_WEEKLY_CHECKLIST.map(item => [
+        item.key,
+        weeklySubmissions.some(s => s.taskKey === item.key && s.isCompleted),
+      ])
+    )
   );
-  const [monthlyChecks, setMonthlyChecks] = useState<Record<string, boolean>>(
-    Object.fromEntries(IT_MONTHLY_CHECKLIST.map(item => [item.key, false]))
+  const [monthlyChecks, setMonthlyChecks] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(
+      IT_MONTHLY_CHECKLIST.map(item => [
+        item.key,
+        monthlySubmissions.some(s => s.taskKey === item.key && s.isCompleted),
+      ])
+    )
   );
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [attendanceId, setAttendanceId] = useState('');
   const [result, setResult] = useState<{ success?: boolean; error?: string } | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // Keep checks in sync if server supplies new submissions
+  useEffect(() => {
+    setWeeklyChecks(prev => {
+      const next = { ...prev };
+      for (const s of weeklySubmissions) {
+        if (s.isCompleted) next[s.taskKey] = true;
+      }
+      return next;
+    });
+  }, [weeklySubmissions]);
+
+  useEffect(() => {
+    setMonthlyChecks(prev => {
+      const next = { ...prev };
+      for (const s of monthlySubmissions) {
+        if (s.isCompleted) next[s.taskKey] = true;
+      }
+      return next;
+    });
+  }, [monthlySubmissions]);
 
   const handleToggle = (key: string, type: 'WEEKLY' | 'MONTHLY') => {
     if (type === 'WEEKLY') {
@@ -67,6 +100,7 @@ export default function ITSchedulesClient({ weeklySubmissions, monthlySubmission
         });
         setResult(res as any);
         if (res.success) {
+          router.refresh();
           setTimeout(() => setResult(null), 4000);
         }
       } catch (e: any) {

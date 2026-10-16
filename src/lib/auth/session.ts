@@ -82,10 +82,13 @@ export async function invalidateSession(): Promise<void> {
   }
 }
 
+import { cache } from 'react';
+
 /**
- * Retrieve the currently authenticated user from the active session
+ * Retrieve the currently authenticated user from the active session.
+ * Wrapped in React cache() to deduplicate session queries within the same request lifecycle.
  */
-export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
+export const getCurrentUser = cache(async function getCurrentUser(): Promise<AuthenticatedUser | null> {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
@@ -175,4 +178,4 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
     console.error('[getCurrentUser] Failed to retrieve session:', err);
     return null;
   }
-}
+});

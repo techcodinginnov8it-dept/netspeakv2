@@ -1,7 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/db';
-import { requireAuth, requirePermission, PERMISSIONS } from '@/lib/auth/rbac';
+import { requireAuth, requirePermission, checkPermission, PERMISSIONS } from '@/lib/auth/rbac';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { NotificationType, NotificationPriority } from '@prisma/client';
@@ -12,15 +12,16 @@ import { NotificationType, NotificationPriority } from '@prisma/client';
 export async function getUserNotificationsAction() {
   const user = await requireAuth();
 
-  const notifications = await prisma.notification.findMany({
-    where: { userId: user.id },
-    orderBy: { createdAt: 'desc' },
-    take: 50,
-  });
-
-  const unreadCount = await prisma.notification.count({
-    where: { userId: user.id, isRead: false },
-  });
+  const [notifications, unreadCount] = await Promise.all([
+    prisma.notification.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+    }),
+    prisma.notification.count({
+      where: { userId: user.id, isRead: false },
+    }),
+  ]);
 
   return {
     success: true,
@@ -88,8 +89,9 @@ const dispatchNotificationSchema = z.object({
   metadata: z.string().optional(),
 });
 
-export async function dispatchNotificationAction(data: z.infer<typeof dispatchNotificationSchema>) {
-  await requirePermission(PERMISSIONS.NOTIFICATIONS_BROADCAST);
+export async function dispatchNotificationAction(data: z.infer<typeof dispatchNotificationSchema>): Promise<{ success: boolean; count?: number; error?: string }> {
+  const user = await checkPermission(PERMISSIONS.NOTIFICATIONS_BROADCAST);
+  if (!user) return { success: false, error: 'Unauthorized: You do not have permission to broadcast alerts.' };
   const parsed = dispatchNotificationSchema.parse(data);
 
   const recipientIds: string[] = [];

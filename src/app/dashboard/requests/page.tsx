@@ -6,6 +6,8 @@ import ETORequestForm from '@/components/requests/ETORequestForm';
 import CashLoanRequestForm from '@/components/requests/CashLoanRequestForm';
 import RequestsApprovalQueue from '@/components/requests/RequestsApprovalQueue';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata = {
   title: 'Self-Service Requests | Netspeak Portal',
 };
@@ -16,13 +18,20 @@ export default async function RequestsPage() {
   const canSubmit = hasPermission(user, PERMISSIONS.REQUESTS_SUBMIT);
   const canApprove = hasPermission(user, PERMISSIONS.REQUESTS_APPROVE);
 
+  // Admin-type roles should never see the self-service submission forms —
+  // they are always present to approve/manage, not to submit as staff.
+  const ADMIN_ROLES = ['SYSTEM_ADMINISTRATOR', 'ADMIN', 'OPERATIONS_MANAGER', 'IT', 'MANAGEMENT'];
+  const isAdminRole = user.roles.some((r) => ADMIN_ROLES.includes(r));
+  // Teachers can submit; admins can only approve
+  const canSubmitForms = canSubmit && !isAdminRole;
+
   // For submitting teachers: load their own request history
   let mySRDRequests: any[] = [];
   let myETORequests: any[] = [];
   let myCashLoanRequests: any[] = [];
   let teacherProfile: any = null;
 
-  if (canSubmit) {
+  if (canSubmitForms) {
     teacherProfile = await prisma.teacherProfile.findFirst({
       where: { userId: user.id },
     });
@@ -198,7 +207,7 @@ export default async function RequestsPage() {
       )}
 
       {/* Teacher: Submit Forms */}
-      {canSubmit && (
+      {canSubmitForms && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(440px, 1fr))', gap: '1.5rem' }}>
           {/* SRD Form */}
           <div style={cardStyle}>
@@ -230,7 +239,7 @@ export default async function RequestsPage() {
       )}
 
       {/* Teacher: Own request history */}
-      {canSubmit && teacherProfile && (
+      {canSubmitForms && teacherProfile && (
         <div style={cardStyle}>
           {sectionHeader(
             '📋 My Request History',
@@ -352,7 +361,7 @@ export default async function RequestsPage() {
       )}
 
       {/* No access */}
-      {!canSubmit && !canApprove && (
+      {!canSubmitForms && !canApprove && (
         <div
           style={{
             ...cardStyle,

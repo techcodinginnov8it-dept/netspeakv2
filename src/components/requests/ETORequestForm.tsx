@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { submitEarlyTimeOffAction } from '@/actions/requests';
 
 interface ETORequestFormProps {
@@ -8,6 +9,7 @@ interface ETORequestFormProps {
 }
 
 export default function ETORequestForm({ onSuccess }: ETORequestFormProps) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -38,6 +40,7 @@ export default function ETORequestForm({ onSuccess }: ETORequestFormProps) {
       setSuccess(true);
       (e.target as HTMLFormElement).reset();
       setAcknowledged(false);
+      router.refresh(); // Re-fetch server component data to show the new ETO in history
       onSuccess?.();
     }
   }

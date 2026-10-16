@@ -1,7 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/db';
-import { requireAuth, requirePermission } from '@/lib/auth/rbac';
+import { requireAuth, requirePermission, checkPermission } from '@/lib/auth/rbac';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { ResignationReason, ResignationWorkflowStatus } from '@prisma/client';
@@ -174,7 +174,8 @@ export async function createExitInterviewSlotAction(
   interviewerName: string = 'Operations Manager Assistant'
 ): Promise<ResignationActionResult> {
   try {
-    await requirePermission('exit_interview:manage');
+    const user = await checkPermission('exit_interview:manage');
+    if (!user) return { error: 'Unauthorized. You do not have permission to manage exit interview slots.' };
 
     const dt = new Date(slotDateTimeStr);
     if (isNaN(dt.getTime())) {
@@ -207,7 +208,8 @@ export async function updateResignationStatusAction(
   reviewNotes?: string
 ): Promise<ResignationActionResult> {
   try {
-    const user = await requirePermission('resignation:manage');
+    const user = await checkPermission('resignation:manage');
+    if (!user) return { error: 'Unauthorized. You do not have permission to manage resignations.' };
 
     await prisma.teacherResignation.update({
       where: { id: resignationId },
@@ -235,7 +237,8 @@ export async function completeExitInterviewAction(
   interviewNotes: string
 ): Promise<ResignationActionResult> {
   try {
-    await requirePermission('exit_interview:manage');
+    const permUser = await checkPermission('exit_interview:manage');
+    if (!permUser) return { error: 'Unauthorized. You do not have permission to complete exit interviews.' };
 
     const slot = await prisma.exitInterviewSlot.findUnique({
       where: { id: slotId },
@@ -280,7 +283,8 @@ export async function completeITClearanceAction(
   itRemarks: string
 ): Promise<ResignationActionResult> {
   try {
-    await requirePermission('resignation:manage');
+    const permUser = await checkPermission('resignation:manage');
+    if (!permUser) return { error: 'Unauthorized. You do not have permission to record IT clearance.' };
 
     const resignation = await prisma.teacherResignation.findUnique({
       where: { id: resignationId },
@@ -346,7 +350,8 @@ export async function deactivateResignedTeacherAction(
   resignationId: string
 ): Promise<ResignationActionResult> {
   try {
-    const user = await requirePermission('resignation:manage');
+    const user = await checkPermission('resignation:manage');
+    if (!user) return { error: 'Unauthorized. You do not have permission to deactivate teachers.' };
 
     const resignation = await prisma.teacherResignation.findUnique({
       where: { id: resignationId },

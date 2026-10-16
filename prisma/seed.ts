@@ -189,10 +189,13 @@ async function main() {
     'teachers:read',
     'teachers:review',
     'teachers:update',
+    'teachers:approve',
     'attendance:read',
     'attendance:verify',
+    'attendance:manage',
     'output:read',
     'requests:submit',
+    'requests:approve',
     'announcements:create',
     'announcements:manage',
     'resignation:view',
@@ -212,6 +215,9 @@ async function main() {
     'reports:view',
     'reports:export',
     'audit:view',
+    'referrals:manage',
+    'slots:manage',
+    'incentives:manage',
   ];
   for (const pName of adminPerms) {
     const pId = permMap.get(pName);
@@ -297,6 +303,7 @@ async function main() {
     'operations:manage',
     'simulations:manage',
     'notifications:read',
+    'announcements:create',
   ];
   for (const pName of itPerms) {
     const pId = permMap.get(pName);
@@ -352,6 +359,8 @@ async function main() {
     'attendance:read',
     'output:read',
     'resignation:view',
+    'concerns:manage',
+    'incidents:manage',
     'newhire:manage',
     'operations:manage',
     'simulations:manage',

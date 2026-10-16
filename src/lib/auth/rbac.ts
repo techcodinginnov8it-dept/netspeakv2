@@ -60,3 +60,19 @@ export async function requireRole(allowedRoles: string[]): Promise<Authenticated
   }
   return user;
 }
+
+/**
+ * Safe permission check for use inside Server Actions that return data (not redirects).
+ * Unlike requirePermission(), this does NOT call redirect() — it returns null on failure
+ * so the action can return { error: '...' } without the redirect being swallowed by
+ * startTransition on the client.
+ *
+ * Usage in a Server Action:
+ *   const user = await checkPermission(PERMISSIONS.SOME_PERMISSION);
+ *   if (!user) return { error: 'Unauthorized.' };
+ */
+export async function checkPermission(permission: string): Promise<AuthenticatedUser | null> {
+  const user = await getCurrentUser();
+  if (!user || !hasPermission(user, permission)) return null;
+  return user;
+}

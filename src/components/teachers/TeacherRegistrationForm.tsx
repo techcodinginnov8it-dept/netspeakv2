@@ -52,7 +52,7 @@ export default function TeacherRegistrationForm() {
           fontWeight: 600,
           fontSize: '0.95rem'
         }}>
-          ⚠️ï¸ {state.error}
+          ⚠️ {state.error}
         </div>
       )}
 
@@ -270,6 +270,18 @@ export default function TeacherRegistrationForm() {
             <select id="department" name="department" className="input" defaultValue="DOMESTIC">
               <option value="DOMESTIC">Domestic</option>
               <option value="OVERSEAS">Overseas / Global</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="branch">Assigned Branch *</label>
+            <select id="branch" name="branch" className="input" defaultValue="Atimonan">
+              <option value="Atimonan">Atimonan</option>
+              <option value="Lopez">Lopez</option>
+              <option value="Sto. Tomas">Sto. Tomas</option>
+              <option value="Mauban">Mauban</option>
+              <option value="San Pablo">San Pablo</option>
+              <option value="Gumaca">Gumaca</option>
             </select>
           </div>
 

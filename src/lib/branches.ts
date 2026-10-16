@@ -35,28 +35,41 @@ export function normalizeBranch(branch?: string | null): string {
   return match ? match.name : branch.trim();
 }
 
+let cachedBranches: Array<{ id: string; name: string; code: string; address: string | null; isActive: boolean }> | null = null;
+let lastFetchTime = 0;
+const CACHE_TTL_MS = 60000; // 60 seconds
+
 /**
- * Fetches all active branches from the database with fallback to INITIAL_BRANCHES
+ * Fetches all active branches from the database with in-memory TTL caching and fallback
  */
 export async function getActiveBranches(): Promise<Array<{ id: string; name: string; code: string; address: string | null; isActive: boolean }>> {
+  if (cachedBranches && (Date.now() - lastFetchTime < CACHE_TTL_MS)) {
+    return cachedBranches;
+  }
+
   try {
     const branches = await prisma.branch.findMany({
       orderBy: { name: 'asc' },
     });
     if (branches && branches.length > 0) {
+      cachedBranches = branches;
+      lastFetchTime = Date.now();
       return branches;
     }
   } catch (err) {
     console.error('Failed to query branches from database, using fallback:', err);
   }
 
-  return INITIAL_BRANCHES.map((b, idx) => ({
+  const fallback = INITIAL_BRANCHES.map((b, idx) => ({
     id: `static-${idx}`,
     name: b.name,
     code: b.code,
     address: b.address || null,
     isActive: b.isActive,
   }));
+  cachedBranches = fallback;
+  lastFetchTime = Date.now();
+  return fallback;
 }
 
 /**

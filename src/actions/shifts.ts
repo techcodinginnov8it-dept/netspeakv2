@@ -1,7 +1,8 @@
 'use server';
 
 import { prisma } from '@/lib/db';
-import { requirePermission } from '@/lib/auth/rbac';
+import { getCurrentUser } from '@/lib/auth/session';
+import { hasPermission, PERMISSIONS } from '@/lib/auth/rbac';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
@@ -65,7 +66,10 @@ export async function getShiftSchedulesAction(): Promise<ShiftScheduleRecord[]> 
  * Create a new shift template.
  */
 export async function createShiftScheduleAction(formData: FormData): Promise<ShiftActionResult> {
-  await requirePermission('attendance:manage');
+  const user = await getCurrentUser();
+  if (!hasPermission(user, PERMISSIONS.ATTENDANCE_MANAGE)) {
+    return { error: 'You do not have permission to manage shift schedules.' };
+  }
 
   const raw = {
     name: formData.get('name'),
@@ -104,7 +108,10 @@ export async function updateShiftScheduleAction(
   id: string,
   formData: FormData
 ): Promise<ShiftActionResult> {
-  await requirePermission('attendance:manage');
+  const user = await getCurrentUser();
+  if (!hasPermission(user, PERMISSIONS.ATTENDANCE_MANAGE)) {
+    return { error: 'You do not have permission to manage shift schedules.' };
+  }
 
   const raw = {
     name: formData.get('name'),
@@ -144,7 +151,10 @@ export async function updateShiftScheduleAction(
  * Delete a shift template. Blocked if teachers are assigned.
  */
 export async function deleteShiftScheduleAction(id: string): Promise<ShiftActionResult> {
-  await requirePermission('attendance:manage');
+  const user = await getCurrentUser();
+  if (!hasPermission(user, PERMISSIONS.ATTENDANCE_MANAGE)) {
+    return { error: 'You do not have permission to manage shift schedules.' };
+  }
 
   const shift = await prisma.shiftSchedule.findUnique({
     where: { id },
@@ -171,7 +181,10 @@ export async function assignTeacherShiftAction(
   teacherProfileId: string,
   shiftScheduleId: string | null
 ): Promise<ShiftActionResult> {
-  await requirePermission('teachers:update');
+  const user = await getCurrentUser();
+  if (!hasPermission(user, PERMISSIONS.TEACHERS_UPDATE)) {
+    return { error: 'You do not have permission to update teacher assignments.' };
+  }
 
   await prisma.teacherProfile.update({
     where: { id: teacherProfileId },

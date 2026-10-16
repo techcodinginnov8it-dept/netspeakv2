@@ -15,7 +15,7 @@ export default async function TeacherConcernsPage() {
   });
 
   if (!teacherProfile) {
-    if (user.roles.includes('ADMIN') || user.roles.includes('OPERATIONS_MANAGER') || user.roles.includes('IT') || user.roles.includes('SYSTEM_ADMINISTRATOR')) {
+    if (user.roles.includes('ADMIN') || user.roles.includes('OPERATIONS_MANAGER') || user.roles.includes('IT') || user.roles.includes('SYSTEM_ADMINISTRATOR') || user.roles.includes('MANAGEMENT')) {
       redirect('/dashboard/concerns/manage');
     }
     redirect('/dashboard');

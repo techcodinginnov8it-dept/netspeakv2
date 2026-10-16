@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { submitSRDRequestAction } from '@/actions/requests';
 
 interface SRDRequestFormProps {
@@ -8,6 +9,7 @@ interface SRDRequestFormProps {
 }
 
 export default function SRDRequestForm({ onSuccess }: SRDRequestFormProps) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -28,6 +30,7 @@ export default function SRDRequestForm({ onSuccess }: SRDRequestFormProps) {
     } else {
       setSuccess(true);
       (e.target as HTMLFormElement).reset();
+      router.refresh(); // Re-fetch server component data to show the new request in history
       onSuccess?.();
     }
   }

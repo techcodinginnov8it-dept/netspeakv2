@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import React, { useState, useTransition, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { fmtDate } from '@/lib/formatTime';
 import {
   RequirementStatus,
   OnboardingStatus,
@@ -70,15 +72,27 @@ export default function NewHireDashboard({
   summary: NewHireSummary;
   availableTeachers: TeacherOption[];
 }) {
+  const router = useRouter();
   const [records, setRecords] = useState<AdminNewHireRecord[]>(initialRecords);
   const [activeTab, setActiveTab] = useState<'ALL' | OnboardingStatus>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRecord, setSelectedRecord] = useState<AdminNewHireRecord | null>(null);
 
+  // Sync state if initialRecords changes from server
+  useEffect(() => {
+    setRecords(initialRecords);
+  }, [initialRecords]);
+
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createMode, setCreateMode] = useState<'SELECT' | 'MANUAL'>(
+    availableTeachers.length > 0 ? 'SELECT' : 'MANUAL'
+  );
   const [selectedTeacherId, setSelectedTeacherId] = useState('');
-  const [newStartDate, setNewStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newTeacherName, setNewTeacherName] = useState('');
+  const [newTeacherEmail, setNewTeacherEmail] = useState('');
+  // Initialised empty to avoid SSR/client hydration mismatch — set client-side in useEffect
+  const [newStartDate, setNewStartDate] = useState('');
   const [newBranch, setNewBranch] = useState('MAIN');
   const [newProject, setNewProject] = useState('ESL Regular');
 
@@ -89,14 +103,57 @@ export default function NewHireDashboard({
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  // Set today's date client-side only to avoid hydration mismatch
+  useEffect(() => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const now = new Date();
+    setNewStartDate(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`);
+  }, []);
+
+  // Compute status helpers
+  const getRecordSLA = (r: AdminNewHireRecord) => {
+    const sDate = new Date(r.startDate);
+    const daysIn = Math.floor((Date.now() - sDate.getTime()) / (1000 * 60 * 60 * 24));
+    const isOverdue = r.status === 'OVERDUE' || (r.status === 'IN_PROGRESS' && daysIn >= 3 && !r.slotsEligible && r.completionPct < 100);
+    const isSlotsEligible = r.status === 'SLOTS_ELIGIBLE' || r.slotsEligible;
+    const isCompleted = r.status === 'COMPLETED' || r.completionPct === 100;
+    const isInProgress = (r.status === 'IN_PROGRESS' || !isCompleted) && !isOverdue && !isSlotsEligible;
+    return { daysIn, isOverdue, isSlotsEligible, isCompleted, isInProgress };
+  };
+
+  // Tab counts
+  const countAll = records.length;
+  const countInProgress = records.filter(r => getRecordSLA(r).isInProgress).length;
+  const countSlotsEligible = records.filter(r => getRecordSLA(r).isSlotsEligible).length;
+  const countCompleted = records.filter(r => getRecordSLA(r).isCompleted).length;
+  const countOverdue = records.filter(r => getRecordSLA(r).isOverdue).length;
+
   // Filter records
   const filteredRecords = records.filter(r => {
-    const matchesTab = activeTab === 'ALL' || r.status === activeTab;
+    const { isOverdue, isSlotsEligible, isCompleted, isInProgress } = getRecordSLA(r);
+
+    let matchesTab = true;
+    if (activeTab === 'ALL') {
+      matchesTab = true;
+    } else if (activeTab === 'IN_PROGRESS') {
+      matchesTab = isInProgress || (r.status === 'IN_PROGRESS' && !isCompleted);
+    } else if (activeTab === 'SLOTS_ELIGIBLE') {
+      matchesTab = isSlotsEligible;
+    } else if (activeTab === 'COMPLETED') {
+      matchesTab = isCompleted;
+    } else if (activeTab === 'OVERDUE') {
+      matchesTab = isOverdue;
+    }
+
+    const q = (searchQuery || '').trim().toLowerCase();
     const matchesQuery =
-      r.teacherName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.branch.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.project.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (r.teacherSystemId && r.teacherSystemId.toLowerCase().includes(searchQuery.toLowerCase()));
+      !q ||
+      (r.teacherName && r.teacherName.toLowerCase().includes(q)) ||
+      (r.teacherEmail && r.teacherEmail.toLowerCase().includes(q)) ||
+      (r.teacherSystemId && r.teacherSystemId.toLowerCase().includes(q)) ||
+      (r.branch && r.branch.toLowerCase().includes(q)) ||
+      (r.project && r.project.toLowerCase().includes(q));
+
     return matchesTab && matchesQuery;
   });
 
@@ -169,14 +226,20 @@ export default function NewHireDashboard({
   // Handle Create Record
   const handleCreateRecord = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedTeacherId) {
-      setActionError('Please select a teacher.');
+    if (createMode === 'SELECT' && !selectedTeacherId) {
+      setActionError('Please select an existing teacher or switch to New Teacher Registration.');
+      return;
+    }
+    if (createMode === 'MANUAL' && !newTeacherName.trim()) {
+      setActionError('Please enter the teacher full name.');
       return;
     }
     setActionError(null);
     startTransition(async () => {
       const res = await createNewHireRecordAction({
-        teacherId: selectedTeacherId,
+        teacherId: createMode === 'SELECT' ? selectedTeacherId : 'NEW',
+        teacherName: createMode === 'MANUAL' ? newTeacherName.trim() : undefined,
+        teacherEmail: createMode === 'MANUAL' ? newTeacherEmail.trim() : undefined,
         startDate: newStartDate,
         branch: newBranch,
         project: newProject,
@@ -185,8 +248,11 @@ export default function NewHireDashboard({
         setActionError(res.error);
       } else {
         setShowCreateModal(false);
-        setActionSuccess('New hire onboarding record created! Refreshing table...');
-        window.location.reload();
+        setSelectedTeacherId('');
+        setNewTeacherName('');
+        setNewTeacherEmail('');
+        setActionSuccess('New hire onboarding record created successfully!');
+        router.refresh();
       }
     });
   };
@@ -204,7 +270,12 @@ export default function NewHireDashboard({
           </p>
         </div>
         <button
-          onClick={() => setShowCreateModal(true)}
+          id="btn-add-hire"
+          type="button"
+          onClick={() => {
+            setShowCreateModal(true);
+            if (availableTeachers.length === 0) setCreateMode('MANUAL');
+          }}
           style={{
             background: 'var(--ns-blue)',
             color: '#fff',
@@ -218,32 +289,91 @@ export default function NewHireDashboard({
             gap: '0.5rem',
           }}
         >
-          <span>➕</span> Add New Hire Record
+          <span>➕</span> Add Hire
         </button>
       </div>
 
-      {/* KPI Stats Strip */}
+      {/* KPI Stats Strip — Clickable to switch tabs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '1rem 1.25rem' }}>
+        <button
+          type="button"
+          onClick={() => setActiveTab('ALL')}
+          style={{
+            background: activeTab === 'ALL' ? 'rgba(0,82,204,0.08)' : 'var(--bg-card)',
+            border: activeTab === 'ALL' ? '1.5px solid var(--ns-blue)' : '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-md)',
+            padding: '1rem 1.25rem',
+            textAlign: 'left',
+            cursor: 'pointer',
+          }}
+        >
           <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total In Pipeline</div>
           <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.25rem' }}>{summary.total}</div>
-        </div>
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '1rem 1.25rem' }}>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('IN_PROGRESS')}
+          style={{
+            background: activeTab === 'IN_PROGRESS' ? 'rgba(180,83,9,0.08)' : 'var(--bg-card)',
+            border: activeTab === 'IN_PROGRESS' ? '1.5px solid #B45309' : '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-md)',
+            padding: '1rem 1.25rem',
+            textAlign: 'left',
+            cursor: 'pointer',
+          }}
+        >
           <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>In Progress</div>
           <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#B45309', marginTop: '0.25rem' }}>{summary.inProgress}</div>
-        </div>
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '1rem 1.25rem' }}>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('COMPLETED')}
+          style={{
+            background: activeTab === 'COMPLETED' ? 'rgba(15,118,110,0.08)' : 'var(--bg-card)',
+            border: activeTab === 'COMPLETED' ? '1.5px solid #0F766E' : '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-md)',
+            padding: '1rem 1.25rem',
+            textAlign: 'left',
+            cursor: 'pointer',
+          }}
+        >
           <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Requirements Done</div>
           <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#0F766E', marginTop: '0.25rem' }}>{summary.completed}</div>
-        </div>
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '1rem 1.25rem' }}>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('SLOTS_ELIGIBLE')}
+          style={{
+            background: activeTab === 'SLOTS_ELIGIBLE' ? 'rgba(0,82,204,0.08)' : 'var(--bg-card)',
+            border: activeTab === 'SLOTS_ELIGIBLE' ? '1.5px solid var(--ns-blue)' : '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-md)',
+            padding: '1rem 1.25rem',
+            textAlign: 'left',
+            cursor: 'pointer',
+          }}
+        >
           <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Slots Eligible ✅</div>
           <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--ns-blue)', marginTop: '0.25rem' }}>{summary.slotsEligible}</div>
-        </div>
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '1rem 1.25rem' }}>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('OVERDUE')}
+          style={{
+            background: activeTab === 'OVERDUE' ? 'rgba(220,38,38,0.08)' : 'var(--bg-card)',
+            border: activeTab === 'OVERDUE' ? '1.5px solid #DC2626' : '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-md)',
+            padding: '1rem 1.25rem',
+            textAlign: 'left',
+            cursor: 'pointer',
+          }}
+        >
           <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Overdue (&gt;3 Days)</div>
           <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#DC2626', marginTop: '0.25rem' }}>{summary.overdue}</div>
-        </div>
+        </button>
       </div>
 
       {/* Alerts */}
@@ -260,11 +390,18 @@ export default function NewHireDashboard({
 
       {/* Filter Tabs & Search */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-        <div style={{ display: 'flex', gap: '0.5rem', background: 'var(--bg-card)', padding: '0.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-          {(['ALL', 'IN_PROGRESS', 'SLOTS_ELIGIBLE', 'COMPLETED', 'OVERDUE'] as const).map(tab => (
+        <div style={{ display: 'flex', gap: '0.4rem', background: 'var(--bg-card)', padding: '0.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
+          {[
+            { tab: 'ALL', label: 'All Hires', count: countAll },
+            { tab: 'IN_PROGRESS', label: 'In Progress', count: countInProgress },
+            { tab: 'SLOTS_ELIGIBLE', label: 'Slot Eligible', count: countSlotsEligible },
+            { tab: 'COMPLETED', label: 'Completed', count: countCompleted },
+            { tab: 'OVERDUE', label: 'Overdue', count: countOverdue },
+          ].map(({ tab, label, count }) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              type="button"
+              onClick={() => setActiveTab(tab as any)}
               style={{
                 background: activeTab === tab ? 'var(--ns-blue)' : 'transparent',
                 color: activeTab === tab ? '#fff' : 'var(--text-dim)',
@@ -274,27 +411,65 @@ export default function NewHireDashboard({
                 fontSize: '0.8rem',
                 fontWeight: 600,
                 cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
               }}
             >
-              {tab === 'ALL' ? 'All Hires' : ONBOARDING_STATUS_CFG[tab]?.label || tab}
+              <span>{label}</span>
+              <span
+                style={{
+                  background: activeTab === tab ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.06)',
+                  color: activeTab === tab ? '#fff' : 'var(--text-secondary)',
+                  padding: '0.1rem 0.45rem',
+                  borderRadius: '999px',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                }}
+              >
+                {count}
+              </span>
             </button>
           ))}
         </div>
-        <input
-          type="text"
-          placeholder="Search by teacher, ID, branch..."
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          style={{
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-color)',
-            borderRadius: 'var(--radius-md)',
-            padding: '0.5rem 1rem',
-            color: 'var(--text-primary)',
-            fontSize: '0.875rem',
-            width: '280px',
-          }}
-        />
+
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <span style={{ position: 'absolute', left: '0.75rem', color: 'var(--text-dim)', fontSize: '0.85rem', pointerEvents: 'none' }}>🔍</span>
+          <input
+            type="text"
+            placeholder="Search by teacher, ID, branch..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-md)',
+              padding: '0.5rem 2.2rem 0.5rem 2.1rem',
+              color: 'var(--text-primary)',
+              fontSize: '0.875rem',
+              width: '280px',
+            }}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              style={{
+                position: 'absolute',
+                right: '0.6rem',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-dim)',
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+                padding: '0.2rem',
+              }}
+              title="Clear search"
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Roster Table */}
@@ -321,7 +496,7 @@ export default function NewHireDashboard({
             ) : (
               filteredRecords.map(rec => {
                 const sDate = new Date(rec.startDate);
-                const daysIn = Math.floor((new Date().getTime() - sDate.getTime()) / (1000 * 60 * 60 * 24));
+                const daysIn = Math.floor((Date.now() - sDate.getTime()) / (1000 * 60 * 60 * 24));
                 const is3DaysPassed = daysIn >= 3;
                 const statusBadge = ONBOARDING_STATUS_CFG[rec.status] || ONBOARDING_STATUS_CFG.IN_PROGRESS;
 
@@ -332,7 +507,7 @@ export default function NewHireDashboard({
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>{rec.teacherSystemId || rec.teacherEmail}</div>
                     </td>
                     <td style={{ padding: '0.875rem 1rem', color: 'var(--text-secondary)' }}>
-                      <div>{sDate.toLocaleDateString('en-PH')}</div>
+                      <div>{fmtDate(rec.startDate)}</div>
                       <div style={{ fontSize: '0.75rem', fontWeight: 600, color: is3DaysPassed ? '#0F766E' : '#B45309' }}>
                         {daysIn} day{daysIn !== 1 ? 's' : ''} since start
                       </div>
@@ -433,7 +608,7 @@ export default function NewHireDashboard({
                   Onboarding Checklist — {selectedRecord.teacherName}
                 </h2>
                 <div style={{ color: 'var(--text-dim)', fontSize: '0.85rem', marginTop: '0.25rem' }}>
-                  Branch: {selectedRecord.branch} &bull; Project: {selectedRecord.project} &bull; Start Date: {new Date(selectedRecord.startDate).toLocaleDateString('en-PH')}
+                  Branch: {selectedRecord.branch} &bull; Project: {selectedRecord.project} &bull; Start Date: {fmtDate(selectedRecord.startDate)}
                 </div>
               </div>
               <button
@@ -702,33 +877,121 @@ export default function NewHireDashboard({
               </button>
             </div>
 
-            <form onSubmit={handleCreateRecord} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-dim)', marginBottom: '0.35rem' }}>
-                  Select Teacher *
-                </label>
-                <select
-                  value={selectedTeacherId}
-                  onChange={e => setSelectedTeacherId(e.target.value)}
-                  required
+            {/* Mode selection if unassigned teachers exist */}
+            {availableTeachers.length > 0 && (
+              <div style={{ display: 'flex', gap: '0.5rem', background: 'rgba(255,255,255,0.03)', padding: '0.25rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                <button
+                  type="button"
+                  onClick={() => setCreateMode('SELECT')}
                   style={{
-                    width: '100%',
-                    background: 'rgba(255,255,255,0.03)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: 'var(--radius-sm)',
-                    padding: '0.5rem',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.875rem',
+                    flex: 1,
+                    background: createMode === 'SELECT' ? 'var(--ns-blue)' : 'transparent',
+                    color: createMode === 'SELECT' ? '#fff' : 'var(--text-dim)',
+                    border: 'none',
+                    borderRadius: 'var(--radius-xs)',
+                    padding: '0.4rem 0.6rem',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
                   }}
                 >
-                  <option value="">-- Choose Teacher --</option>
-                  {availableTeachers.map(t => (
-                    <option key={t.id} value={t.id}>
-                      {t.fullName} ({t.systemId}) {t.branch ? `[${t.branch}]` : ''}
-                    </option>
-                  ))}
-                </select>
+                  Select Existing ({availableTeachers.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCreateMode('MANUAL')}
+                  style={{
+                    flex: 1,
+                    background: createMode === 'MANUAL' ? 'var(--ns-blue)' : 'transparent',
+                    color: createMode === 'MANUAL' ? '#fff' : 'var(--text-dim)',
+                    border: 'none',
+                    borderRadius: 'var(--radius-xs)',
+                    padding: '0.4rem 0.6rem',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Quick Register New Hire
+                </button>
               </div>
+            )}
+
+            <form onSubmit={handleCreateRecord} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {createMode === 'SELECT' ? (
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-dim)', marginBottom: '0.35rem' }}>
+                    Select Teacher *
+                  </label>
+                  <select
+                    value={selectedTeacherId}
+                    onChange={e => setSelectedTeacherId(e.target.value)}
+                    required
+                    style={{
+                      width: '100%',
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 'var(--radius-sm)',
+                      padding: '0.5rem',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.875rem',
+                    }}
+                  >
+                    <option value="">-- Choose Teacher --</option>
+                    {availableTeachers.map(t => (
+                      <option key={t.id} value={t.id}>
+                        {t.fullName} ({t.systemId}) {t.branch ? `[${t.branch}]` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-dim)', marginBottom: '0.35rem' }}>
+                      Teacher Full Name *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Maria Santos"
+                      value={newTeacherName}
+                      onChange={e => setNewTeacherName(e.target.value)}
+                      required
+                      style={{
+                        width: '100%',
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '0.5rem',
+                        color: 'var(--text-primary)',
+                        fontSize: '0.875rem',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-dim)', marginBottom: '0.35rem' }}>
+                      Email Address (Optional)
+                    </label>
+                    <input
+                      type="email"
+                      placeholder="e.g. maria.santos@netspeak.ph"
+                      value={newTeacherEmail}
+                      onChange={e => setNewTeacherEmail(e.target.value)}
+                      style={{
+                        width: '100%',
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '0.5rem',
+                        color: 'var(--text-primary)',
+                        fontSize: '0.875rem',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                </>
+              )}
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-dim)', marginBottom: '0.35rem' }}>

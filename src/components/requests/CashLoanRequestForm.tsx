@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { submitCashLoanRequestAction } from '@/actions/requests';
 
 export default function CashLoanRequestForm() {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +39,7 @@ export default function CashLoanRequestForm() {
     setAmount('5000');
     setTermMonths('6');
     setTermsAcknowledged(false);
+    router.refresh(); // Re-fetch server data to show the new loan in history
   }
 
   const labelStyle: React.CSSProperties = {

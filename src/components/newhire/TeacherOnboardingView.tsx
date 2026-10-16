@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { fmtDate } from '@/lib/formatTime';
 import { RequirementStatus, OnboardingStatus } from '@prisma/client';
 
 export type OnboardingRequirementItem = {
@@ -39,6 +40,9 @@ const ONBOARDING_CFG: Record<OnboardingStatus, { label: string; color: string }>
 };
 
 export default function TeacherOnboardingView({ record }: { record?: OnboardingRecordProps }) {
+  const [filterStatus, setFilterStatus] = React.useState<'ALL' | RequirementStatus>('ALL');
+  const [searchQuery, setSearchQuery] = React.useState('');
+
   if (!record) {
     return (
       <div style={{ maxWidth: '680px', margin: '0 auto', padding: '2.5rem 1rem' }}>
@@ -59,18 +63,29 @@ export default function TeacherOnboardingView({ record }: { record?: OnboardingR
   }
 
   const startDate = new Date(record.startDate);
-  const today = new Date();
-  const daysSinceStart = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  const daysSinceStart = Math.floor((Date.now() - startDate.getTime()) / (1000 * 60 * 60 * 24));
   const daysRemaining = Math.max(0, 3 - daysSinceStart);
-  const statusCfg = ONBOARDING_CFG[record.status];
+  const statusCfg = ONBOARDING_CFG[record.status] || ONBOARDING_CFG.IN_PROGRESS;
 
   // SVG progress ring
   const radius = 42;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (record.completionPct / 100) * circumference;
 
+  const totalReqs = record.requirements.length;
+  const completedCount = record.requirements.filter(r => r.status === 'COMPLETED' || r.status === 'VERIFIED').length;
+  const pendingCount = record.requirements.filter(r => r.status === 'PENDING').length;
+  const missingCount = record.requirements.filter(r => r.status === 'MISSING').length;
+
+  const filteredRequirements = record.requirements.filter(r => {
+    const matchesStatus = filterStatus === 'ALL' || r.status === filterStatus;
+    const q = searchQuery.toLowerCase().trim();
+    const matchesQuery = !q || r.label.toLowerCase().includes(q) || (r.notes && r.notes.toLowerCase().includes(q));
+    return matchesStatus && matchesQuery;
+  });
+
   return (
-    <div style={{ maxWidth: '780px', margin: '0 auto', padding: '2rem 1rem' }}>
+    <div style={{ maxWidth: '850px', margin: '0 auto', padding: '2rem 1rem' }}>
       {/* Header */}
       <div style={{ marginBottom: '1.75rem' }}>
         <h1 style={{ margin: '0 0 0.35rem', fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>
@@ -110,7 +125,7 @@ export default function TeacherOnboardingView({ record }: { record?: OnboardingR
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
           <InfoBlock label="Branch" value={record.branch} icon="🏢" />
           <InfoBlock label="Project" value={record.project} icon="📁" />
-          <InfoBlock label="Start Date" value={startDate.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })} icon="📅" />
+          <InfoBlock label="Start Date" value={fmtDate(record.startDate)} icon="📅" />
           <InfoBlock label="Status" value={statusCfg.label} icon="📊" valueColor={statusCfg.color} />
           <div style={{ gridColumn: '1 / -1' }}>
             {record.slotsEligible ? (
@@ -122,7 +137,7 @@ export default function TeacherOnboardingView({ record }: { record?: OnboardingR
                 ✅ You are eligible to open class slots!
                 {record.slotsEligibleAt && (
                   <span style={{ fontWeight: 500, marginLeft: '0.5rem', color: '#0F766E' }}>
-                    (Granted {new Date(record.slotsEligibleAt).toLocaleDateString('en-PH')})
+                    (Granted {fmtDate(record.slotsEligibleAt)})
                   </span>
                 )}
               </div>
@@ -151,10 +166,59 @@ export default function TeacherOnboardingView({ record }: { record?: OnboardingR
       }}>
         <div style={{
           padding: '1rem 1.5rem', borderBottom: '1px solid var(--border-color)',
-          fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem',
         }}>
-          📋 Requirements Checklist ({record.requirements.filter(r => r.status === 'COMPLETED' || r.status === 'VERIFIED').length}/{record.requirements.length} done)
+          <div style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+            📋 Requirements Checklist ({completedCount}/{totalReqs} done)
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <input
+              type="text"
+              placeholder="Search checklist..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              style={{
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '0.35rem 0.75rem',
+                color: 'var(--text-primary)',
+                fontSize: '0.8rem',
+                width: '180px',
+              }}
+            />
+          </div>
         </div>
+
+        {/* Filter Pills */}
+        <div style={{ display: 'flex', gap: '0.4rem', padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.01)', flexWrap: 'wrap' }}>
+          {[
+            { key: 'ALL', label: `All (${totalReqs})` },
+            { key: 'PENDING', label: `Pending (${pendingCount})` },
+            { key: 'COMPLETED', label: `Completed (${record.requirements.filter(r => r.status === 'COMPLETED').length})` },
+            { key: 'VERIFIED', label: `Verified (${record.requirements.filter(r => r.status === 'VERIFIED').length})` },
+            { key: 'MISSING', label: `Missing (${missingCount})` },
+          ].map(tab => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setFilterStatus(tab.key as any)}
+              style={{
+                background: filterStatus === tab.key ? 'var(--ns-blue)' : 'transparent',
+                color: filterStatus === tab.key ? '#fff' : 'var(--text-dim)',
+                border: filterStatus === tab.key ? 'none' : '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '0.25rem 0.65rem',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
             <thead>
@@ -165,28 +229,41 @@ export default function TeacherOnboardingView({ record }: { record?: OnboardingR
               </tr>
             </thead>
             <tbody>
-              {record.requirements.map((req, i) => {
-                const cfg = STATUS_CFG[req.status];
-                return (
-                  <tr key={req.id} style={{ borderTop: i > 0 ? '1px solid var(--border-color)' : 'none' }}>
-                    <td style={{ padding: '0.75rem 1.25rem', color: 'var(--text-primary)', fontWeight: 500 }}>
-                      {req.label}
-                    </td>
-                    <td style={{ padding: '0.75rem 1.25rem' }}>
-                      <span style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-                        padding: '0.2rem 0.65rem', borderRadius: '100px',
-                        background: cfg.bg, color: cfg.text, fontSize: '0.75rem', fontWeight: 600,
-                      }}>
-                        {cfg.icon} {cfg.label}
-                      </span>
-                    </td>
-                    <td style={{ padding: '0.75rem 1.25rem', color: 'var(--text-dim)', fontSize: '0.8rem' }}>
-                      {req.completedAt ? new Date(req.completedAt).toLocaleDateString('en-PH') : '—'}
-                    </td>
-                  </tr>
-                );
-              })}
+              {filteredRequirements.length === 0 ? (
+                <tr>
+                  <td colSpan={3} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-dim)' }}>
+                    No requirements match current filter.
+                  </td>
+                </tr>
+              ) : (
+                filteredRequirements.map((req, i) => {
+                  const cfg = STATUS_CFG[req.status] || STATUS_CFG.PENDING;
+                  return (
+                    <tr key={req.id} style={{ borderTop: i > 0 ? '1px solid var(--border-color)' : 'none' }}>
+                      <td style={{ padding: '0.75rem 1.25rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+                        <div>{req.label}</div>
+                        {req.notes && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '0.25rem', fontStyle: 'italic' }}>
+                            💬 {req.notes}
+                          </div>
+                        )}
+                      </td>
+                      <td style={{ padding: '0.75rem 1.25rem' }}>
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                          padding: '0.2rem 0.65rem', borderRadius: '100px',
+                          background: cfg.bg, color: cfg.text, fontSize: '0.75rem', fontWeight: 600,
+                        }}>
+                          {cfg.icon} {cfg.label}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.75rem 1.25rem', color: 'var(--text-dim)', fontSize: '0.8rem' }}>
+                        {req.completedAt ? fmtDate(req.completedAt) : '—'}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
